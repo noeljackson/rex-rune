@@ -4,8 +4,8 @@ rex_install() (
     set -eu
     umask 077
     REPO='https://github.com/shuv1337/rex-rune'
-    CI_KEY='RWRugVJ2wnj9oVdIvBhQFK1/BDvL1KkA4aH1HB2Q0uA30OBHXIvTlHwL'
-    BACKUP_KEY='RWTzIScuoaGONtqf+4m48HAGuwNgUxvd/AFZareIgMwCGCKVjbTjcmJe'
+    CI_KEY='RWRugVJ2wnj9oVdIvBhQFK1/BDvL1KkA4aH1HB2Q0uA30OBHXIvTlHwL'  # gitleaks:allow (minisign public key)
+    BACKUP_KEY='RWTzIScuoaGONtqf+4m48HAGuwNgUxvd/AFZareIgMwCGCKVjbTjcmJe'  # gitleaks:allow (minisign public key)
 
     die() { printf 'rex-linux installer: %s\n' "$*" >&2; exit 1; }
     stable() {
