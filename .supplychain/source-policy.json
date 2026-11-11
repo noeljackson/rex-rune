@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "exceptions": [
+    {
+      "kind": "osv",
+      "advisory_id": "RUSTSEC-2026-0370",
+      "package": "zvariant",
+      "reason": "unmaintained notice only: merged into zbus 6 as its wire module; rex-linux and rune already use zbus 6, and zbus 5 comes in only through accesskit_unix and atspi in Rune's accessibility stack",
+      "owner": "@noeljackson",
+      "expires": "2027-02-11"
+    },
+    {
+      "kind": "osv",
+      "advisory_id": "RUSTSEC-2026-0371",
+      "package": "zbus_names",
+      "reason": "unmaintained notice only: merged into zbus 6 as its wire module; rex-linux and rune already use zbus 6, and zbus 5 comes in only through accesskit_unix and atspi in Rune's accessibility stack",
+      "owner": "@noeljackson",
+      "expires": "2027-02-11"
+    },
+    {
+      "kind": "osv",
+      "advisory_id": "RUSTSEC-2026-0372",
+      "package": "zvariant_derive",
+      "reason": "unmaintained notice only: merged into zbus 6 as its wire module; rex-linux and rune already use zbus 6, and zbus 5 comes in only through accesskit_unix and atspi in Rune's accessibility stack",
+      "owner": "@noeljackson",
+      "expires": "2027-02-11"
+    }
+  ]
+}
