@@ -906,7 +906,7 @@ impl Workspace {
                         Intent::Tab(id.clone()),
                     )
                     .group_named(place);
-                    e.current = view.active_window_id.as_ref() == Some(id);
+                    e.current = model.window().and_then(|w| w.window_id.as_ref()) == Some(id);
                     entries.push(e);
                 }
             }

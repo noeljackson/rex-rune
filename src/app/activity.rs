@@ -243,9 +243,8 @@ impl Workspace {
             && index == self.active
             && model.selected.as_deref() == Some(session)
             && model
-                .views
-                .get(session)
-                .is_some_and(|v| v.active_window_id.as_deref() == Some(window))
+                .window_for(session)
+                .is_some_and(|w| w.window_id.as_deref() == Some(window))
     }
 
     /// Compare each tab of host `index` with its last state: latch unseen Done, clear what
@@ -420,6 +419,9 @@ impl Workspace {
     }
 
     fn deliver(&mut self, note: Note) {
+        if !self.allow_desktop_note(&note) {
+            return;
+        }
         if cfg!(test) {
             self.outbox.push(note);
             return;

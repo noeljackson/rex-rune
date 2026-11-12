@@ -95,6 +95,9 @@ const IDS: &[&str] = &[
     "view.font.reset",
     "app.settings",
     "app.check_updates",
+    "app.window_new",
+    "app.fullscreen",
+    "app.detach_tab",
     "app.about",
     "app.help",
     "app.report_issue",
@@ -332,7 +335,7 @@ fn a_search_is_one_list_with_the_best_match_first() {
             "Close pane or tab…",
             "Close other panes…",
             "Close pane…",
-            "Close app"
+            "Close desktop window"
         ]
     );
     assert_eq!(ws.panel.as_ref().unwrap().selected, 0);
@@ -361,7 +364,7 @@ fn a_search_is_one_list_with_the_best_match_first() {
     );
     // Other names for a command, and its group's name, find it too.
     search(&mut ws, "quit");
-    assert_eq!(labels(&ws), ["Close app"]);
+    assert_eq!(labels(&ws), ["Close desktop window"]);
     search(&mut ws, "view");
     assert_eq!(labels(&ws).len(), 12, "every View command");
     // A shortcut is found as typed, not by its letters.
@@ -952,6 +955,9 @@ fn the_list_shows_about_twenty_rows_and_scrolls_to_the_rest() {
     assert!(words.iter().any(|w| w == "Commands"));
     assert!(!headings(&rt).iter().any(|w| w == "Session · s-label"));
     let short = rect(&rt, "results-scroll");
-    assert!(short[3] < 250., "six rows need no scrolling: {short:?}");
+    assert!(
+        short[3] < 250.,
+        "filtered rows need no scrolling: {short:?}"
+    );
     std::fs::remove_file(&rt.state.settings_path).ok();
 }

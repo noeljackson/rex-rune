@@ -69,7 +69,7 @@ Imported upstream commits 99dc9db and c982398 (PR 57) provide local compatibilit
 | `client.tab.move` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `client.tab.move.backward` | alias | `client.tab.move` | workspace |
 | `client.tab.move.forward` | alias | `client.tab.move` | workspace |
-| `client.tab.move_to_new_window` | missing | Not registered in this Linux baseline. | denied |
+| `client.tab.move_to_new_window` | partial | Independently targeted desktop view; server programs keep running on close. | workspace |
 | `client.tab.new` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `client.tab.next` | supported | Registered local action; remote availability is a separate permission. | view |
 | `client.tab.previous` | supported | Registered local action; remote availability is a separate permission. | view |
@@ -87,9 +87,9 @@ Imported upstream commits 99dc9db and c982398 (PR 57) provide local compatibilit
 | `client.update.status` | missing | Not registered in this Linux baseline. | denied |
 | `client.version.copy` | supported | Registered local action; remote availability is a separate permission. | denied |
 | `client.visibility.toggle` | missing | Not registered in this Linux baseline. | denied |
-| `client.window.close` | missing | Not registered in this Linux baseline. | denied |
-| `client.window.fullscreen.toggle` | missing | Not registered in this Linux baseline. | denied |
-| `client.window.new` | missing | Not registered in this Linux baseline. | denied |
+| `client.window.close` | supported | Independently targeted desktop view; server programs keep running on close. | workspace |
+| `client.window.fullscreen.toggle` | supported | Independently targeted desktop view; server programs keep running on close. | workspace |
+| `client.window.new` | supported | Independently targeted desktop view; server programs keep running on close. | workspace |
 | `pane.balance` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `pane.close` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `pane.close_others` | supported | Registered local action; remote availability is a separate permission. | workspace |

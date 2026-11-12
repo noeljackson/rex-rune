@@ -187,6 +187,9 @@ pub struct ProtocolStats {
 
 #[derive(Clone, Default)]
 pub struct HostModel {
+    /// Desktop-local tab choices; None preserves legacy server-following behavior.
+    pub pinned_tabs: Option<HashMap<String, String>>,
+    pub desktop_reply: Option<(String, bool)>,
     /// A successful SSH lookup found no default server; setup may be offered, never run.
     pub ssh_server_missing: bool,
     pub visible: bool,
@@ -364,7 +367,18 @@ impl HostModel {
         self.views.get(self.selected.as_ref()?)
     }
     pub fn window(&self) -> Option<&session::Window> {
-        let view = self.view()?;
+        self.window_for(self.selected.as_deref()?)
+    }
+    pub fn window_for(&self, session: &str) -> Option<&session::Window> {
+        let view = self.views.get(session)?;
+        let pinned = self.pinned_tabs.as_ref().and_then(|tabs| tabs.get(session));
+        if let Some(window) = view
+            .windows
+            .iter()
+            .find(|w| w.window_id.as_ref().is_some_and(|id| Some(id) == pinned))
+        {
+            return Some(window);
+        }
         view.windows
             .iter()
             .find(|w| w.window_id == view.active_window_id)
@@ -373,9 +387,43 @@ impl HostModel {
     pub fn focused(&self) -> Option<&str> {
         self.window()?.focused_block_id.as_deref()
     }
+
+    fn pin_current(&mut self) {
+        let Some(session) = self.selected.clone() else {
+            return;
+        };
+        let Some(view) = self.views.get(&session) else {
+            return;
+        };
+        let Some(tabs) = &mut self.pinned_tabs else {
+            return;
+        };
+        if tabs.get(&session).is_some_and(|id| {
+            view.windows
+                .iter()
+                .any(|w| w.window_id.as_ref() == Some(id))
+        }) {
+            return;
+        }
+        if let Some(id) = view
+            .active_window_id
+            .as_ref()
+            .or_else(|| view.windows.first().and_then(|w| w.window_id.as_ref()))
+        {
+            tabs.insert(session, id.clone());
+        }
+    }
 }
 
 pub enum HostCommand {
+    PinTabs(HashMap<String, String>),
+    DesktopCloseReply {
+        epoch: u64,
+        call_id: String,
+        consent: Arc<std::sync::atomic::AtomicU64>,
+        generation: u64,
+        deadline: Instant,
+    },
     /// Commands captured from the ordinary UI handlers, executed once on this epoch.
     PerformBatch {
         consent: Arc<std::sync::atomic::AtomicU64>,
@@ -627,7 +675,10 @@ struct Shared {
 }
 impl Shared {
     fn update(&self, change: impl FnOnce(&mut HostModel)) {
-        change(&mut self.model.lock().expect("host model"));
+        let mut model = self.model.lock().expect("host model");
+        change(&mut model);
+        model.pin_current();
+        drop(model);
         let _ = self.wake.try_send(());
     }
     fn status(&self, status: impl Into<String>, connected: bool) {
@@ -1378,6 +1429,7 @@ async fn run_host(
             shared.update(|m| {
                 m.connection_epoch += 1;
                 m.remote_result = None;
+                m.desktop_reply = None;
                 m.performs.clear();
                 m.client_id = identity.id.clone();
                 m.protocol.api_revision = control.welcome().api_revision;
@@ -1521,6 +1573,7 @@ async fn run_host(
                         let Ok(command) = command else { control.close().await?; return Ok(true); };
                         if matches!(command, HostCommand::Shutdown) { control.close().await?; return Ok(true); }
                         if matches!(command, HostCommand::Reconnect) { return Ok(false); }
+                        if let HostCommand::PinTabs(tabs) = command { shared.update(|m| m.pinned_tabs = Some(tabs)); reconcile(&endpoint, shared, &sender, &mut workers); continue; }
                         if let HostCommand::Keymap(new) = command {
                             keymap::refresh(&mut control, shared, &new).await;
                             keymap = Some(new);
@@ -1602,6 +1655,7 @@ async fn run_host(
                     Ok(HostCommand::Shutdown) | Err(_) => return Ok(()),
                     Ok(HostCommand::Reconnect) => break,
                     Ok(HostCommand::Select(id)) => preferred = Some(id),
+                    Ok(HostCommand::PinTabs(tabs)) => shared.update(|m| m.pinned_tabs = Some(tabs)),
                     Ok(HostCommand::Navigate { id, .. }) => reject_navigation(shared, id),
                     Ok(HostCommand::Visibility(visible)) => shared.update(|m|m.visible=visible),
                     Ok(HostCommand::PrefetchViews(sessions)) => prefetch.set_eligible(sessions),
@@ -1628,6 +1682,7 @@ async fn run_host(
             match command {
                 HostCommand::Shutdown => return Ok(()),
                 HostCommand::Select(id) => preferred = Some(id),
+                HostCommand::PinTabs(tabs) => shared.update(|m| m.pinned_tabs = Some(tabs)),
                 HostCommand::Navigate { id, .. } => reject_navigation(shared, id),
                 HostCommand::Visibility(visible) => shared.update(|m| m.visible = visible),
                 HostCommand::PrefetchViews(sessions) => prefetch.set_eligible(sessions),
@@ -1774,6 +1829,40 @@ async fn handle_command(
     theme: &mut Option<SetTheme>,
 ) -> Result<()> {
     match command {
+        HostCommand::DesktopCloseReply {
+            epoch,
+            call_id,
+            consent,
+            generation,
+            deadline,
+        } => {
+            if shared.model.lock().expect("host model").connection_epoch == epoch {
+                let permitted = Instant::now() < deadline
+                    && consent.load(std::sync::atomic::Ordering::Acquire) == generation;
+                let outcome = if permitted {
+                    perform::Outcome::Performed
+                } else {
+                    perform::Outcome::error(
+                        "refused",
+                        "Closing the desktop window expired or lost consent; it remains open.",
+                    )
+                };
+                let result = tokio::time::timeout(
+                    Duration::from_secs(4),
+                    control.call(outcome.reply(&call_id)),
+                )
+                .await;
+                shared.update(|m| {
+                    m.desktop_reply = Some((call_id, permitted && matches!(&result, Ok(Ok(_)))))
+                });
+                match result {
+                    Ok(result) => {
+                        result?;
+                    }
+                    Err(error) => return Err(error.into()),
+                }
+            }
+        }
         HostCommand::PerformBatch {
             consent,
             generation,
@@ -1947,7 +2036,7 @@ async fn handle_command(
                 Instant::now() < deadline,
                 "Navigation expired before focusing; nothing will be retried"
             );
-            if let Some(window) = window {
+            if let Some(window) = &window {
                 request(
                     control,
                     "session.focus_window",
@@ -1957,6 +2046,9 @@ async fn handle_command(
                 refresh(control, shared, state, &session).await?;
             }
             shared.update(|m| {
+                if let (Some(tabs), Some(window)) = (&mut m.pinned_tabs, window) {
+                    tabs.insert(session.clone(), window);
+                }
                 m.selected = Some(session);
                 m.notice = None;
             });
@@ -1995,8 +2087,27 @@ async fn handle_command(
         }
         HostCommand::Request { method, payload } => {
             let session_id = payload["session_id"].as_str().map(str::to_owned);
-            request(control, &method, payload).await?;
+            let target = payload["window_id"].as_str().map(str::to_owned);
+            let result = request(control, &method, payload).await?;
             after_request(control, shared, workers, state, session_id.as_deref()).await?;
+            if method == "session.new_window"
+                && let (Some(session), Some(window)) = (&session_id, result["window_id"].as_str())
+            {
+                shared.update(|m| {
+                    if let Some(tabs) = &mut m.pinned_tabs {
+                        tabs.insert(session.clone(), window.into());
+                    }
+                });
+            }
+            if method == "session.focus_window"
+                && let (Some(session), Some(window)) = (session_id, target)
+            {
+                shared.update(|m| {
+                    if let Some(tabs) = &mut m.pinned_tabs {
+                        tabs.insert(session, window);
+                    }
+                });
+            }
         }
         HostCommand::NewTerminal {
             method,
@@ -2011,8 +2122,17 @@ async fn handle_command(
                 crate::layout::with_cwd(&mut payload["layout"], &dir);
             }
             // Creation is sent once. A failure follows the ordinary request path; never replay.
-            request(control, &method, payload).await?;
+            let result = request(control, &method, payload).await?;
             after_request(control, shared, workers, state, Some(&session)).await?;
+            if method == "session.new_window"
+                && let Some(window) = result["window_id"].as_str()
+            {
+                shared.update(|m| {
+                    if let Some(tabs) = &mut m.pinned_tabs {
+                        tabs.insert(session, window.into());
+                    }
+                });
+            }
         }
         HostCommand::Ticket {
             session,
@@ -2183,6 +2303,7 @@ async fn handle_command(
             }
         }
         HostCommand::Reconnect
+        | HostCommand::PinTabs(_)
         | HostCommand::Shutdown
         | HostCommand::PrefetchViews(_)
         | HostCommand::Keymap(_)

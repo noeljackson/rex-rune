@@ -183,7 +183,6 @@ pub enum Run {
     /// List tabs under their sessions in the sidebar, or in the toolbar.
     TabsInSidebar(bool),
     PaneDensity(PaneDensity),
-    CloseApp,
     /// A named action of the host on screen, run there for the session and pane on screen.
     ServerAction(String),
 }
@@ -197,7 +196,6 @@ impl Run {
                 s.save();
                 tx.instant();
             }
-            Run::CloseApp => tx.close_window(),
             Run::ServerAction(name) => {
                 // Asked once, as a bound key asks: a failure is a notice, never a retry.
                 let mut request = rexrs::api::client::Action::new(name).origin("palette");
@@ -852,6 +850,24 @@ impl Workspace {
             );
         }
         rows.extend([
+            Command::action(
+                "app.window_new",
+                G,
+                "New desktop window",
+                "client.window.new",
+            ),
+            Command::action(
+                "app.fullscreen",
+                G,
+                "Toggle fullscreen",
+                "client.window.fullscreen.toggle",
+            ),
+            Command::action(
+                "app.detach_tab",
+                G,
+                "Move tab to new desktop window",
+                "client.tab.move_to_new_window",
+            ),
             Command::action("app.about", G, "About Rex Linux", about::ABOUT)
                 .keywords("version build license credits"),
             Command::row("app.help", G, help::command()).keywords("guide docs documentation"),
@@ -880,9 +896,14 @@ impl Workspace {
                 "Exit all key modes",
                 "client.mode.exit_all",
             ),
-            Command::new("app.close", G, "Close app", Intent::Command(Run::CloseApp))
-                .detail("Programs keep running")
-                .keywords("quit exit window"),
+            Command::action(
+                "app.close",
+                G,
+                "Close desktop window",
+                "client.window.close",
+            )
+            .detail("Programs keep running")
+            .keywords("quit exit window"),
         ]);
         rows
     }
