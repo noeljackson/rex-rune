@@ -365,8 +365,8 @@ pub fn blake2b_512(input: &[u8]) -> [u8; 64] {
 
     fn compress(h: &mut [u64; 8], block: &[u8; 128], t: u128, last: bool) {
         let mut m = [0u64; 16];
-        for (i, chunk) in block.chunks_exact(8).enumerate() {
-            m[i] = u64::from_le_bytes(chunk.try_into().unwrap());
+        for (i, chunk) in block.as_chunks::<8>().0.iter().enumerate() {
+            m[i] = u64::from_le_bytes(*chunk);
         }
         let mut v = [0u64; 16];
         v[..8].copy_from_slice(h);

@@ -123,15 +123,14 @@ impl Node {
                 dns_name.split('.').next().unwrap_or_default().to_owned(),
                 dns_name,
             )
-        } else if let Some(ip) = ip {
+        } else {
+            let ip = ip?;
             let name = if self.host_name.is_empty() || self.host_name == "localhost" {
                 ip.clone()
             } else {
                 self.host_name.clone()
             };
             (name, ip)
-        } else {
-            return None;
         };
         let host_name = Some(self.host_name)
             .filter(|h| !h.is_empty() && h != "localhost" && !h.eq_ignore_ascii_case(&name));
