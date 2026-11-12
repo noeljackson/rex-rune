@@ -4,6 +4,8 @@
 
 ### Added
 
+- **Workspace remote control:** a separate per-host opt-in for CLI creation and pane management, preserving old view-only consent. Forms and destructive confirmations stay local and expire with the request; queued commands lose their grant on consent or endpoint changes. Server-backed remote actions reply after acknowledgement and refreshed UI state, with failures never replayed. A private CLI acceptance script covers creation, layout changes, confirmation, cancellation and expiry.
+
 - **Mac action compatibility contract:** versioned action metadata and a complete compatibility matrix for Rex Beta 0.1.0 (1925), with tests against its argument schemas. Reuses upstream PR 57's local aliases, pane move/resize/balance and key modes. `pane.split` also accepts `auto`, and `pane.focus` accepts an explicit `wrap`; existing Linux names and the eight-action remote allowed set are preserved.
 
 - **AT-SPI accessibility tree**, from Rune's new default `accessibility` feature, which stays on. Checked with an AT-SPI client script on a private bus; not tried with Orca or another screen reader. Chrome buttons, tabs, switches, segmented controls, text fields (with caret, selection and edit events), dialogs and notices have roles, names and states, and notices raise announcements. The terminal pane exposes its visible rows as plain labels only: no text interface, caret, selection or focus. See the README's Accessibility section for what was observed and what is missing.

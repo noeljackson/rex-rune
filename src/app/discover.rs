@@ -477,6 +477,7 @@ impl Workspace {
             label: c.machine.name.clone(),
             endpoint: endpoint.to_owned(),
             remote_control: false,
+            workspace_control: false,
             collapsed: false,
             shell: None,
         };

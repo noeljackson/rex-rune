@@ -31,6 +31,7 @@ use std::{
 pub struct HostId(pub u64);
 
 pub struct HostState {
+    pub(super) consent_generation: std::sync::Arc<std::sync::atomic::AtomicU64>,
     pub id: HostId,
     pub connection: HostConnection,
     pub model: HostModel,
@@ -38,6 +39,13 @@ pub struct HostState {
     pub prefetch: HashSet<String>,
     /// Settings-source diagnostic sets already announced for this host, across reconnects.
     pub keymap_notices: HashSet<String>,
+}
+
+impl Drop for HostState {
+    fn drop(&mut self) {
+        self.consent_generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+    }
 }
 
 pub struct DividerDrag {
@@ -79,6 +87,10 @@ pub struct Workspace {
     pub last_keypress: Option<std::time::Instant>,
     pub remote_off_notices: HashSet<HostId>,
     pub remote_navigation: Option<super::remote::Navigation>,
+    pub(super) remote_operation: Option<super::remote_workspace::Operation>,
+    pub(super) remote_approval: Option<super::remote_workspace::Approval>,
+    pub(super) remote_dispatch: Option<Vec<(HostId, HostCommand)>>,
+    pub(super) next_remote_operation: u64,
     /// Panes this window has taken size ownership of since it last came forward.
     pub claimed: HashSet<(HostId, String)>,
     pub handle: AppHandle<Workspace>,
@@ -172,6 +184,7 @@ impl Workspace {
                 label: rex_linux::settings::endpoint_label(&options.endpoint),
                 endpoint: options.endpoint.clone(),
                 remote_control: false,
+                workspace_control: false,
                 collapsed: false,
                 shell: None,
             });
@@ -228,6 +241,10 @@ impl Workspace {
             last_keypress: None,
             remote_off_notices: HashSet::new(),
             remote_navigation: None,
+            remote_operation: None,
+            remote_approval: None,
+            remote_dispatch: None,
+            next_remote_operation: 0,
             claimed: HashSet::new(),
             handle,
             window_focused: true,
@@ -348,6 +365,7 @@ impl Workspace {
             .expect("host wake thread");
         let model = connection.model.lock().expect("host model").clone();
         HostState {
+            consent_generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
             id,
             connection,
             model,
@@ -408,7 +426,7 @@ impl Workspace {
         host.label = label;
         host.shell = shell;
         if host.endpoint != endpoint {
-            host.remote_control = false;
+            host.set_remote_access(rex_linux::settings::RemoteAccess::Off);
             let old = std::mem::replace(&mut host.endpoint, endpoint);
             self.settings.sessions.remove(&old);
             let state = self.spawn_host(index, false);
@@ -517,7 +535,11 @@ impl Workspace {
         }
         self.hosts[index].model = model;
         self.announce_keymap_problems(index);
+        // Resolve navigation bookkeeping before replying, so a following CLI command
+        // does not see a completed visit as still pending.
+        self.observe_navigation();
         self.poll_remote_navigation(std::time::Instant::now());
+        self.poll_remote_workspace(std::time::Instant::now(), tx);
         for pending in performs {
             self.remote_perform(index, pending, tx);
         }
@@ -973,9 +995,26 @@ impl Workspace {
     }
 
     pub fn send(&mut self, index: usize, command: HostCommand) {
+        self.send_checked(index, command);
+    }
+
+    pub(super) fn send_checked(&mut self, index: usize, command: HostCommand) -> bool {
+        // Visibility and prefetch are this client's bookkeeping, not server mutations.
+        // Navigation may update them for every already-connected host.
+        if let Some(captured) = &mut self.remote_dispatch
+            && !matches!(
+                command,
+                HostCommand::Visibility(_) | HostCommand::PrefetchViews(_)
+            )
+        {
+            captured.push((self.hosts[index].id, command));
+            return true;
+        }
         if self.hosts[index].connection.commands.send(command).is_err() {
             self.notify("Host worker stopped. Restart Rex to reconnect.");
+            return false;
         }
+        true
     }
 
     pub fn request(&mut self, method: &str, mut payload: Value) {
@@ -1795,6 +1834,7 @@ impl Workspace {
 
     /// Escape on a modal: back to the panel it came from, or closed.
     pub fn cancel_panel_quiet(&mut self) {
+        self.cancel_remote_approval();
         if let Some(mut back) = self.panel.as_mut().and_then(|p| p.back.take()) {
             if let Some(input) = back.inputs.first_mut() {
                 input.focused = true;
@@ -1806,6 +1846,7 @@ impl Workspace {
     }
 
     pub fn cancel_panel(&mut self, tx: &mut Tx) {
+        self.cancel_remote_approval();
         if let Some(mut back) = self.panel.as_mut().and_then(|p| p.back.take()) {
             if let Some(input) = back.inputs.first_mut() {
                 input.focused = true;
@@ -1849,6 +1890,14 @@ impl Workspace {
     }
 
     pub fn submit(&mut self, tx: &mut Tx) {
+        if self.remote_approval.is_some() {
+            self.submit_remote_approval(tx);
+        } else {
+            self.submit_inner(tx);
+        }
+    }
+
+    pub(super) fn submit_inner(&mut self, tx: &mut Tx) {
         let Some(panel) = &self.panel else { return };
         let kind = panel.kind.clone();
         let values: Vec<String> = panel
@@ -1975,6 +2024,7 @@ impl Workspace {
                             label: values[0].clone(),
                             endpoint: values[1].clone(),
                             remote_control: false,
+                workspace_control: false,
                             collapsed: false,
                             shell: None,
                         },
@@ -1988,6 +2038,7 @@ impl Workspace {
                                 label: values[0].clone(),
                                 endpoint,
                                 remote_control: false,
+                workspace_control: false,
                                 collapsed: false,
                                 shell: None,
                             },

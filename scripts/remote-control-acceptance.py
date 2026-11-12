@@ -222,7 +222,6 @@ try:
     else:
         perform(active, "client.tab.goto", {"index": 2})
     wait(lambda: view()["active_window_id"] == windows[1], "second tab not selected")
-    time.sleep(.2)  # Part 1 replies on dispatch, before the UI applies navigation acknowledgement.
     perform(active, "pane.focus", {"direction": "right"})
     perform(active, "pane.zoom")
     perform(active, "pane.zoom")
@@ -247,7 +246,7 @@ try:
         return api(active, "com.superlogical.terminal.format", session_id=sessions[active], block_id=block,
                    args={"format": "text", "trim": True, "unwrap": True})["content"]
     before_text = text()
-    for action, args, hint in [("client.tab.new", None, "rex window new"), ("pane.paste", None, "rex send"),
+    for action, args, hint in [("client.tab.new", None, "Workspace control is off"), ("pane.paste", None, "rex send"),
                                ("pane.send_key", {"key": "x"}, "rex send-key")]:
         perform(active, action, args, error=hint)
     assert len(view()["windows"]) == len(before["windows"])

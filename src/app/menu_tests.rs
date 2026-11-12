@@ -99,6 +99,7 @@ fn every_menu_separates_its_groups_and_ends_with_its_destructive_row() {
         label: "other".into(),
         endpoint: "unix:///nonexistent/rex-test-other.sock".into(),
         remote_control: false,
+        workspace_control: false,
         collapsed: false,
         shell: None,
     });

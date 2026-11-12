@@ -13,12 +13,73 @@ pub struct Host {
     pub endpoint: String,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub remote_control: bool,
+    /// A separate opt-in: old `remote_control: true` remains view-only, including when an
+    /// older client reads preferences written by this version.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub workspace_control: bool,
     #[serde(default)]
     pub collapsed: bool,
     /// The shell new terminals on this host start (`zsh`, `/bin/zsh`); none uses the server
     /// user's login shell.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub shell: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RemoteAccess {
+    Off,
+    View,
+    Workspace,
+}
+
+#[cfg(test)]
+mod remote_access_tests {
+    use super::*;
+
+    #[test]
+    fn old_saved_consent_remains_view_only_and_workspace_is_a_separate_opt_in() {
+        let mut host: Host = serde_json::from_str(
+            r#"{"label":"test","endpoint":"unix:///private.sock","remote_control":true}"#,
+        )
+        .unwrap();
+        assert_eq!(host.remote_access(), RemoteAccess::View);
+        assert!(!host.workspace_control);
+        host.set_remote_access(RemoteAccess::Workspace);
+        let saved = serde_json::to_value(&host).unwrap();
+        assert_eq!(
+            saved["remote_control"], true,
+            "older clients only see view consent"
+        );
+        assert_eq!(saved["workspace_control"], true);
+        let mut reloaded: Host = serde_json::from_value(saved).unwrap();
+        assert_eq!(reloaded.remote_access(), RemoteAccess::Workspace);
+        reloaded.set_remote_access(RemoteAccess::Off);
+        assert!(!reloaded.workspace_control);
+        reloaded.set_remote_access(RemoteAccess::View);
+        assert_eq!(reloaded.remote_access(), RemoteAccess::View);
+        reloaded.remote_control = false;
+        reloaded.workspace_control = true;
+        assert_eq!(
+            reloaded.remote_access(),
+            RemoteAccess::Off,
+            "a stray workspace flag cannot grant access"
+        );
+    }
+}
+
+impl Host {
+    pub fn remote_access(&self) -> RemoteAccess {
+        match (self.remote_control, self.workspace_control) {
+            (false, _) => RemoteAccess::Off,
+            (true, false) => RemoteAccess::View,
+            (true, true) => RemoteAccess::Workspace,
+        }
+    }
+
+    pub fn set_remote_access(&mut self, access: RemoteAccess) {
+        self.remote_control = access != RemoteAccess::Off;
+        self.workspace_control = access == RemoteAccess::Workspace;
+    }
 }
 
 /// A tab this client keeps quiet: no activity word or progress bar on it and no desktop
@@ -225,6 +286,7 @@ impl Default for Settings {
                     .to_owned(),
                 endpoint: crate::transport::local_endpoint(),
                 remote_control: false,
+                workspace_control: false,
                 collapsed: false,
                 shell: None,
             }],

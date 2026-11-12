@@ -271,19 +271,16 @@ impl Workspace {
             self.update_title(tx);
             return;
         }
-        if self.hosts[host]
-            .connection
-            .commands
-            .send(HostCommand::Navigate {
+        if !self.send_checked(
+            host,
+            HostCommand::Navigate {
                 id,
                 deadline,
                 session: visit.session,
                 window: visit.window,
-            })
-            .is_err()
-        {
+            },
+        ) {
             self.cancel_navigation();
-            self.notify("Host worker stopped. Restart Rex to reconnect.");
         }
         self.save();
         self.update_title(tx);

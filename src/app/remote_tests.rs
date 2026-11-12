@@ -191,6 +191,7 @@ fn remote_view_actions_use_the_local_handlers_and_announce_requester() {
         ws.remote_perform(0, pending(name, args), &mut rune::Tx::default());
         let mut performed = 0;
         let mut dispatched = method == "sidebar" && ws.sidebar.is_open();
+        let mut operation = None;
         for command in rx.try_iter() {
             match command {
                 HostCommand::PerformReply { outcome, .. } => {
@@ -201,10 +202,31 @@ fn remote_view_actions_use_the_local_handlers_and_announce_requester() {
                 HostCommand::Navigate { window, .. } => {
                     dispatched |= method == "navigate" && window.as_deref() == Some("split")
                 }
+                HostCommand::PerformBatch { id, commands, .. } => {
+                    operation = Some(id);
+                    for command in commands {
+                        match command {
+                            HostCommand::Request { method: m, .. } => dispatched |= m == method,
+                            HostCommand::Navigate { window, .. } => {
+                                dispatched |=
+                                    method == "navigate" && window.as_deref() == Some("split")
+                            }
+                            _ => panic!("unexpected view operation"),
+                        }
+                    }
+                }
                 _ => {}
             }
         }
         assert!(dispatched, "{name}");
+        if let Some(id) = operation {
+            assert_eq!(performed, 0, "{name}: do not acknowledge on dispatch");
+            assert!(ws.notices.is_empty());
+            ws.hosts[0].model.remote_result = Some((id, Outcome::Performed));
+            ws.poll_remote_workspace(Instant::now(), &mut rune::Tx::default());
+            assert_eq!(reply(&rx), Outcome::Performed);
+            performed += 1;
+        }
         assert_eq!(performed, 1);
         assert_eq!(ws.notices.len(), 1);
         assert!(
@@ -407,7 +429,7 @@ fn client_label_form_trims_and_rejects_empty_without_freezing_the_default() {
 }
 
 #[test]
-fn remote_control_switch_is_per_host_and_survives_save() {
+fn remote_control_choice_is_per_host_and_survives_save() {
     let mut ws = workspace_hosts(2);
     let rx = capture_host(&mut ws, 1);
     ws.hosts[1].model.connected = true;
@@ -423,15 +445,21 @@ fn remote_control_switch_is_per_host_and_survives_save() {
     let mut rt = runtime(ws);
     assert!(has(&rt, "remote-control:0"));
     assert!(has(&rt, "remote-control:1"));
-    // The root eases to the window's size; the switches sit at the dialog's trailing edge.
+    // The root eases to the window's size; the choices sit at the dialog's trailing edge.
     for _ in 0..60 {
         rt.frame(1. / 60.);
     }
     click(&mut rt, "remote-control:0");
+    rt.state
+        .perform(Intent::Choose(2), &mut rune::Tx::default());
     assert!(Settings::load(&rt.state.settings_path).unwrap().hosts[0].remote_control);
+    assert!(Settings::load(&rt.state.settings_path).unwrap().hosts[0].workspace_control);
+    assert!(!rt.state.settings.hosts[1].workspace_control);
     let endpoint = rt.state.settings.hosts[0].endpoint.clone();
     rt.state.edit_host(0, "renamed".into(), endpoint, None);
     assert!(rt.state.settings.hosts[0].remote_control);
+    let consent = rt.state.hosts[0].consent_generation.clone();
+    let generation = consent.load(std::sync::atomic::Ordering::Acquire);
     rt.state.edit_host(
         0,
         "changed".into(),
@@ -439,5 +467,11 @@ fn remote_control_switch_is_per_host_and_survives_save() {
         None,
     );
     assert!(!rt.state.settings.hosts[0].remote_control);
+    assert!(!rt.state.settings.hosts[0].workspace_control);
+    assert_ne!(
+        consent.load(std::sync::atomic::Ordering::Acquire),
+        generation,
+        "endpoint changes invalidate queued operations"
+    );
     assert!(rt.state.settings.hosts[1].remote_control);
 }

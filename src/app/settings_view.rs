@@ -13,7 +13,9 @@ use super::{
     widgets::{Pill, glyph},
     workspace::Workspace,
 };
-use rex_linux::settings::{NoticePosition, NotificationsConfig, PaneDensity, PaneHeader};
+use rex_linux::settings::{
+    NoticePosition, NotificationsConfig, PaneDensity, PaneHeader, RemoteAccess,
+};
 use rune::{Cursor, El, ScrollPos, ScrollSpec, Tx, col, el, row, text};
 use rune_kit::{IconButton, Switch};
 
@@ -444,15 +446,31 @@ fn host_card(s: &Workspace, i: usize, last: bool) -> El {
                     .child(address),
             )
             .child(actions),
-        setting(
+        select_row(
+            &format!("remote-control:{}", s.hosts[i].id.0),
             "Remote control",
-            "Let rex do and other clients on this host change the view in this window.",
-            Switch::new(host.remote_control)
-                .label(format!("Remote control for {}", host.label))
-                .hide_label()
-                .on_toggle(move |s: &mut Workspace| s.toggle_remote_control(i))
-                .build(kit())
-                .key(format!("remote-control:{i}")),
+            "Workspace control also permits creating and rearranging terminals; closing still asks.",
+            &["Off", "View only", "Workspace"],
+            match host.remote_access() {
+                RemoteAccess::Off => 0,
+                RemoteAccess::View => 1,
+                RemoteAccess::Workspace => 2,
+            },
+            {
+                let id = s.hosts[i].id;
+                move |s, index, _| {
+                    if let Some(host) = s.host_index(id) {
+                        s.set_remote_access(
+                            host,
+                            match index {
+                                1 => RemoteAccess::View,
+                                2 => RemoteAccess::Workspace,
+                                _ => RemoteAccess::Off,
+                            },
+                        );
+                    }
+                }
+            },
         ),
     ])
 }

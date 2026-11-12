@@ -349,7 +349,7 @@ server instance, and every reconnect registers again.
 
 ### Rex action compatibility
 
-Settings → Shortcuts lists supported actions even when **Unbound**, with their action names; compatibility spellings are marked **alias**. This is a focused subset of the [official Mac action reference](https://www.superlogical.com/rex/docs/reference/mac-actions), not full Mac parity. Every newly added compatibility action is **local-only**; the remote allowed set below is unchanged.
+Settings → Shortcuts lists supported actions even when **Unbound**, with their action names; compatibility spellings are marked **alias**. This is a focused subset of the [official Mac action reference](https://www.superlogical.com/rex/docs/reference/mac-actions), not full Mac parity. Compatibility actions require the consent described below; clipboard and local-system actions remain local-only.
 
 | Status | Actions / behavior |
 | --- | --- |
@@ -371,24 +371,44 @@ The versioned [Mac action compatibility matrix](docs/compatibility/mac-actions.m
 records supported names, aliases, argument differences and remote availability.
 It is checked against captured Mac action schemas without requiring a live Mac.
 
-Settings → Remote Hosts has a **Remote control** switch for each saved host,
-**off by default, including local hosts**. Changing an endpoint turns it off again.
-Commands can turn it on or off for the host on screen. With it on, `rex do` and
-`client.perform` can run exactly eight actions: `session.select`, `client.tab.goto`,
+Settings → Remote Hosts has a **Remote control** choice for each saved host,
+**Off by default, including local hosts**. **View only** retains the original
+behavior; old saved `remote_control: true` settings keep this meaning. Changing an
+endpoint turns control off again. Commands toggles between Off and View only and
+never grants Workspace control. With View only, `rex do` and `client.perform` can
+run exactly eight actions: `session.select`, `client.tab.goto`,
 `client.tab.next`, `client.tab.previous`, `pane.focus`, `pane.zoom`, `pane.scroll`,
 and `client.sidebar.toggle` on that host.
-These requests cannot create or close terminals, type, access the clipboard, open
-dialogs, change interface zoom, or affect any host other than the requesting host. Refusals name the
+View-only requests cannot create or close terminals, type, access the clipboard,
+open dialogs, change interface zoom, or affect any other host.
+
+**Workspace** is a separate saved-host opt-in. It also permits the declared
+session/tab creation, renaming, close, pane split/focus/move/resize/balance and
+move-to-existing-tab actions and their directional aliases. A request uses the
+ordinary UI handler. If it opens a form, target picker or close confirmation, the
+person at this computer must complete it before the original five-second
+request limit. Closing still defaults to **Keep running**; cancellation, expiry,
+revoked consent, changed targets or a replaced connection discard the approval.
+Server commands captured from the handler run once and the caller receives
+success only after the server acknowledges them and the refreshed state reaches
+the UI. A queued operation loses its grant when consent changes, even if control
+is later enabled again. Failed or timed-out operations are never replayed; an
+error after dispatch can mean that a step already took effect.
+
+Neither mode grants clipboard access, terminal input, opening Settings, local
+system actions or cross-server Lua relaying. Workspace actions stay on the
+requesting host. Refusals name the
 server command to use instead where one exists (`rex window new`, `rex send-key`,
-`rex capture`, etc.). Actions remain listed even with the switch off.
+`rex capture`, etc.). Actions remain listed even with control off.
 
 `session.select` shows a session on the requesting host, switching to that host if
 needed; an optional `window_id` selects a tab. It replies only after navigation is
 acknowledged, or fails after five seconds. Unknown sessions/tabs return `not_found`.
 All other requests must match the host, session and pane on screen. Navigation runs only
 after a pause in typing, and never while a text field has focus. The pause must
-last at least 1.5 seconds. All remote actions are refused while a text field has
-focus, a panel is open or a key sequence is pending. Requests not acted on within
+last at least 1.5 seconds. New remote actions are refused while a text field has
+focus, a panel is open or a key sequence is pending. A form or confirmation opened
+by an accepted Workspace request can be completed by the local user only. Requests not acted on within
 five seconds are discarded, including time buffered during a busy connection
 step (counted conservatively from that step's start). Replies never cross a reconnect.
 Every performed request gets a six-second in-app notice naming host, requester

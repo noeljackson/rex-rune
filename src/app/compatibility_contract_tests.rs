@@ -48,6 +48,7 @@ fn every_captured_mac_action_has_an_honest_registration_and_permission_decision(
         );
         let remote = match spec.map(actions::Spec::remote) {
             Some(actions::Remote::View { .. }) => "view",
+            Some(actions::Remote::Workspace) => "workspace",
             _ => "denied",
         };
         assert_eq!(row["remote"], remote, "{name}: remote policy changed");

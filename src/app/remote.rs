@@ -1,4 +1,4 @@
-//! Per-host consent and the deliberately small view-only remote surface.
+//! Saved-host consent: the original view-only surface plus explicit workspace control.
 use super::{
     actions::{self, Remote},
     navigation::Visit,
@@ -22,7 +22,20 @@ const TYPING: Duration = Duration::from_millis(1500);
 
 impl Workspace {
     pub fn toggle_remote_control(&mut self, host: usize) {
-        self.settings.hosts[host].remote_control = !self.settings.hosts[host].remote_control;
+        use rex_linux::settings::RemoteAccess;
+        let access = if self.settings.hosts[host].remote_control {
+            RemoteAccess::Off
+        } else {
+            RemoteAccess::View
+        };
+        self.set_remote_access(host, access);
+    }
+
+    pub fn set_remote_access(&mut self, host: usize, access: rex_linux::settings::RemoteAccess) {
+        self.hosts[host]
+            .consent_generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        self.settings.hosts[host].set_remote_access(access);
         self.save();
     }
 
@@ -39,17 +52,24 @@ impl Workspace {
                 "This remote action is not supported by Rex Linux; nothing was done.",
             ));
         };
-        let Remote::View { navigation } = spec.remote() else {
-            let Remote::Never(message) = spec.remote() else {
-                unreachable!()
-            };
-            return Err(Outcome::error(
-                "not_supported",
-                format!(
-                    "{} is not available remotely. {message} Nothing was done.",
-                    request.action
-                ),
-            ));
+        let navigation = match spec.remote() {
+            Remote::View { navigation } => navigation,
+            Remote::Workspace if self.settings.hosts[host].workspace_control => true,
+            Remote::Workspace => {
+                return Err(Outcome::error(
+                    "refused",
+                    "Workspace control is off for this host. Choose Workspace in Settings → Remote Hosts to permit this action; nothing was done.",
+                ));
+            }
+            Remote::Never(message) => {
+                return Err(Outcome::error(
+                    "not_supported",
+                    format!(
+                        "{} is not available remotely. {message} Nothing was done.",
+                        request.action
+                    ),
+                ));
+            }
         };
         if !self.settings.hosts[host].remote_control {
             return Err(Outcome::error(
@@ -92,7 +112,11 @@ impl Workspace {
             Some("The requested pane is not focused")
         } else if navigation && self.last_keypress.is_some_and(|at| at.elapsed() < TYPING) {
             Some("The person is typing; try again after a pause")
-        } else if self.navigation.pending.is_some() || self.remote_navigation.is_some() {
+        } else if self.navigation.pending.is_some()
+            || self.remote_navigation.is_some()
+            || self.remote_operation.is_some()
+            || self.remote_approval.is_some()
+        {
             Some("Another navigation is still in progress")
         } else {
             None
@@ -113,7 +137,11 @@ impl Workspace {
             self.session_visit(host, &request.args)?;
             return Ok(());
         }
-        if request.action != "client.sidebar.toggle" && self.model().window().is_none() {
+        if !matches!(
+            request.action.as_str(),
+            "client.sidebar.toggle" | "session.new"
+        ) && self.model().window().is_none()
+        {
             return Err(Outcome::error(
                 "internal",
                 "No tab is on screen; nothing was done.",
@@ -178,6 +206,13 @@ impl Workspace {
                 outcome
             }
             Ok(()) => {
+                if matches!(
+                    actions::find(&pending.request.action).unwrap().remote(),
+                    Remote::Workspace
+                ) {
+                    self.run_remote_commands(host, pending, tx);
+                    return;
+                }
                 if pending.request.action == actions::SELECT_SESSION {
                     let visit = self
                         .session_visit(host, &pending.request.args)
@@ -196,6 +231,13 @@ impl Workspace {
                         pending,
                         Outcome::error("internal", "Navigation could not start."),
                     );
+                    return;
+                }
+                if !matches!(
+                    pending.request.action.as_str(),
+                    "client.sidebar.toggle" | "pane.scroll"
+                ) {
+                    self.run_remote_commands(host, pending, tx);
                     return;
                 }
                 if actions::run(self, &pending.request.action, &pending.request.args, tx) {

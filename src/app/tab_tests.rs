@@ -275,9 +275,9 @@ fn ctrl_shift_page_keys_move_the_tab_on_screen() {
         assert!(
             matches!(
                 actions::find(name).unwrap().remote(),
-                actions::Remote::Never(_)
+                actions::Remote::Never(_) | actions::Remote::Workspace
             ),
-            "{name} is never remote"
+            "{name} is unavailable with view-only consent"
         );
     }
     std::fs::remove_file(&rt.state.settings_path).ok();

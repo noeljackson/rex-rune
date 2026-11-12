@@ -235,12 +235,23 @@ pub enum Form {
 }
 
 /// The options a Settings `select_row` lists in its popup, and what choosing one does.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Choice {
     pub options: Vec<String>,
     pub current: Option<usize>,
     /// Called with the chosen index after the list has closed.
-    pub apply: fn(&mut Workspace, usize, &mut rune::Tx),
+    pub apply: ChoiceApply,
+}
+
+pub type ChoiceApply = std::sync::Arc<dyn Fn(&mut Workspace, usize, &mut rune::Tx) + Send + Sync>;
+
+impl std::fmt::Debug for Choice {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Choice")
+            .field("options", &self.options)
+            .field("current", &self.current)
+            .finish_non_exhaustive()
+    }
 }
 
 /// The sections of Settings, in the order its sidebar lists them.
@@ -335,6 +346,8 @@ pub enum PanelKind {
 }
 
 pub struct Panel {
+    /// Identifies a pending remote approval; ordinary panels never inherit it.
+    pub remote_call: Option<String>,
     pub kind: PanelKind,
     pub title: String,
     pub inputs: Vec<TextEdit>,
@@ -368,6 +381,7 @@ impl Panel {
         }
         Self {
             kind,
+            remote_call: None,
             title: title.into(),
             inputs,
             fields: fields

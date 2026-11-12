@@ -24,6 +24,7 @@ mod panel;
 mod panes;
 mod popups;
 mod remote;
+mod remote_workspace;
 mod settings_kit;
 mod settings_view;
 mod sidebar;
@@ -148,8 +149,10 @@ pub(crate) fn view(s: &Workspace, cx: &mut Cx<Workspace>) -> El {
 fn poll(s: &mut Workspace, _: f64, tx: &mut Tx) -> bool {
     let now = std::time::Instant::now();
     let remote_changed = s.poll_remote_navigation(now);
+    let workspace_changed = s.poll_remote_workspace(now, tx);
     let updates_changed = s.poll_updates(now, tx);
-    let mut changed = s.poll_navigation(now, tx) || remote_changed || updates_changed;
+    let mut changed =
+        s.poll_navigation(now, tx) || remote_changed || workspace_changed || updates_changed;
     if let Some(panel) = &mut s.panel
         && std::mem::take(&mut panel.reveal)
     {

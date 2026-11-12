@@ -450,7 +450,7 @@ fn rex_help_opens_this_versions_guide_from_commands() {
 }
 
 #[test]
-fn the_new_actions_are_registered_bindable_and_never_remote() {
+fn the_new_actions_are_registered_bindable_and_denied_in_view_only_mode() {
     for name in [
         splits::FOCUS_NEXT,
         splits::FOCUS_PREVIOUS,
@@ -461,8 +461,11 @@ fn the_new_actions_are_registered_bindable_and_never_remote() {
     ] {
         let spec = actions::find(name).unwrap_or_else(|| panic!("{name} is not registered"));
         assert!(
-            matches!(spec.remote(), actions::Remote::Never(_)),
-            "{name} must not be available remotely"
+            matches!(
+                spec.remote(),
+                actions::Remote::Never(_) | actions::Remote::Workspace
+            ),
+            "{name} must not be available under view-only consent"
         );
         assert!(spec.accepts(&Value::Null) && spec.accepts(&json!({})));
         assert!(!spec.accepts(&json!({"extra":1})), "{name}");

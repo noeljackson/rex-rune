@@ -331,7 +331,7 @@ fn a_choice_without_settings_behind_it_closes_and_ignores_a_stale_index() {
     let choice = || crate::app::panel::Choice {
         options: vec!["a".into(), "b".into()],
         current: Some(1),
-        apply,
+        apply: std::sync::Arc::new(apply),
     };
     ws.open_choice("nowhere", "Letters", choice());
     assert_eq!(

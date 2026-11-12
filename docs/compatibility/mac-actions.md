@@ -8,7 +8,7 @@ Supported means registered for local bindings and Commands; it does not mean rem
 
 ## Remote control
 
-The saved host owns consent. Off remains the default; the original view-only option permits exactly eight canonical action names. Added aliases remain remote-denied even when their canonical action is allowed. Broader workspace consent and correlated mutation replies are tracked separately in issues [4](https://github.com/noeljackson/rex-rune/issues/4) and [5](https://github.com/noeljackson/rex-rune/issues/5). Clipboard and local system access are not granted by this contract.
+The saved host owns consent. Off remains the default; the original view-only option permits exactly eight canonical action names. Workspace mode separately permits the declared workspace actions and aliases; it never inherits the old view-only consent. Closing still asks for local confirmation. The broader consent and correlated mutation replies are tracked in issues [4](https://github.com/noeljackson/rex-rune/issues/4) and [5](https://github.com/noeljackson/rex-rune/issues/5). Clipboard and local system access are not granted by this contract.
 
 ## Arguments and server revisions
 
@@ -26,7 +26,7 @@ Imported upstream commits 99dc9db and c982398 (PR 57) provide local compatibilit
 | --- | --- | --- | --- |
 | `client.agents.setup` | missing | Not registered in this Linux baseline. | denied |
 | `client.appearance.switch_mode` | missing | Not registered in this Linux baseline. | denied |
-| `client.close` | supported | Registered local action; remote availability is a separate permission. | denied |
+| `client.close` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `client.config.copy_path` | supported | Registered local action; remote availability is a separate permission. | denied |
 | `client.config.reload` | supported | Registered local action; remote availability is a separate permission. | denied |
 | `client.debug.copy` | supported | Registered local action; remote availability is a separate permission. | denied |
@@ -63,17 +63,17 @@ Imported upstream commits 99dc9db and c982398 (PR 57) provide local compatibilit
 | `client.sidebar.activity.toggle` | missing | Not registered in this Linux baseline. | denied |
 | `client.sidebar.filter.focus` | missing | Not registered in this Linux baseline. | denied |
 | `client.sidebar.toggle` | supported | Registered local action; remote availability is a separate permission. | view |
-| `client.tab.close` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `client.tab.close_others` | supported | Registered local action; remote availability is a separate permission. | denied |
+| `client.tab.close` | supported | Registered local action; remote availability is a separate permission. | workspace |
+| `client.tab.close_others` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `client.tab.goto` | supported | Registered local action; remote availability is a separate permission. | view |
-| `client.tab.move` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `client.tab.move.backward` | alias | `client.tab.move` | denied |
-| `client.tab.move.forward` | alias | `client.tab.move` | denied |
+| `client.tab.move` | supported | Registered local action; remote availability is a separate permission. | workspace |
+| `client.tab.move.backward` | alias | `client.tab.move` | workspace |
+| `client.tab.move.forward` | alias | `client.tab.move` | workspace |
 | `client.tab.move_to_new_window` | missing | Not registered in this Linux baseline. | denied |
-| `client.tab.new` | supported | Registered local action; remote availability is a separate permission. | denied |
+| `client.tab.new` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `client.tab.next` | supported | Registered local action; remote availability is a separate permission. | view |
 | `client.tab.previous` | supported | Registered local action; remote availability is a separate permission. | view |
-| `client.tab.rename` | supported | Registered local action; remote availability is a separate permission. | denied |
+| `client.tab.rename` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `client.tab_style.toggle` | missing | Not registered in this Linux baseline. | denied |
 | `client.theme.change` | partial | Picker supported; the optional theme name argument is not supported. | denied |
 | `client.theme.import` | missing | Not registered in this Linux baseline. | denied |
@@ -90,54 +90,54 @@ Imported upstream commits 99dc9db and c982398 (PR 57) provide local compatibilit
 | `client.window.close` | missing | Not registered in this Linux baseline. | denied |
 | `client.window.fullscreen.toggle` | missing | Not registered in this Linux baseline. | denied |
 | `client.window.new` | missing | Not registered in this Linux baseline. | denied |
-| `pane.balance` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `pane.close` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `pane.close_others` | supported | Registered local action; remote availability is a separate permission. | denied |
+| `pane.balance` | supported | Registered local action; remote availability is a separate permission. | workspace |
+| `pane.close` | supported | Registered local action; remote availability is a separate permission. | workspace |
+| `pane.close_others` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `pane.copy` | supported | Registered local action; remote availability is a separate permission. | denied |
 | `pane.copy_id` | supported | Registered local action; remote availability is a separate permission. | denied |
 | `pane.float` | missing | Not registered in this Linux baseline. | denied |
 | `pane.focus` | partial | Explicit wrap is forwarded; omitted wrap preserves the server default (false on the tested API 12 server), while Mac defaults to true. | view |
-| `pane.focus.down` | alias | `pane.focus` | denied |
-| `pane.focus.left` | alias | `pane.focus` | denied |
-| `pane.focus.right` | alias | `pane.focus` | denied |
-| `pane.focus.up` | alias | `pane.focus` | denied |
-| `pane.focus_next` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `pane.focus_previous` | supported | Registered local action; remote availability is a separate permission. | denied |
+| `pane.focus.down` | alias | `pane.focus` | workspace |
+| `pane.focus.left` | alias | `pane.focus` | workspace |
+| `pane.focus.right` | alias | `pane.focus` | workspace |
+| `pane.focus.up` | alias | `pane.focus` | workspace |
+| `pane.focus_next` | supported | Registered local action; remote availability is a separate permission. | workspace |
+| `pane.focus_previous` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `pane.go_to` | missing | Not registered in this Linux baseline. | denied |
 | `pane.go_to_directory` | missing | Not registered in this Linux baseline. | denied |
 | `pane.insert_path` | missing | Not registered in this Linux baseline. | denied |
 | `pane.minimize_all_floating` | missing | Not registered in this Linux baseline. | denied |
 | `pane.minimize_floating` | missing | Not registered in this Linux baseline. | denied |
-| `pane.move` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `pane.move.down` | alias | `pane.move` | denied |
-| `pane.move.left` | alias | `pane.move` | denied |
-| `pane.move.right` | alias | `pane.move` | denied |
-| `pane.move.up` | alias | `pane.move` | denied |
+| `pane.move` | supported | Registered local action; remote availability is a separate permission. | workspace |
+| `pane.move.down` | alias | `pane.move` | workspace |
+| `pane.move.left` | alias | `pane.move` | workspace |
+| `pane.move.right` | alias | `pane.move` | workspace |
+| `pane.move.up` | alias | `pane.move` | workspace |
 | `pane.move_to_new_tab` | unsupported | Server API 12 cannot make an empty tab around an existing block without starting another program. | denied |
-| `pane.move_to_tab` | supported | Registered local action; remote availability is a separate permission. | denied |
+| `pane.move_to_tab` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `pane.new_floating` | missing | Not registered in this Linux baseline. | denied |
 | `pane.paste` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `pane.rename` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `pane.resize` | supported | Registered local action; remote availability is a separate permission. | denied |
+| `pane.rename` | supported | Registered local action; remote availability is a separate permission. | workspace |
+| `pane.resize` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `pane.select_all` | supported | Registered local action; remote availability is a separate permission. | denied |
 | `pane.send_key` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `pane.split` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `pane.split.auto` | alias | `pane.split` | denied |
-| `pane.split.down` | alias | `pane.split` | denied |
-| `pane.split.left` | alias | `pane.split` | denied |
-| `pane.split.right` | alias | `pane.split` | denied |
-| `pane.split.up` | alias | `pane.split` | denied |
+| `pane.split` | supported | Registered local action; remote availability is a separate permission. | workspace |
+| `pane.split.auto` | alias | `pane.split` | workspace |
+| `pane.split.down` | alias | `pane.split` | workspace |
+| `pane.split.left` | alias | `pane.split` | workspace |
+| `pane.split.right` | alias | `pane.split` | workspace |
+| `pane.split.up` | alias | `pane.split` | workspace |
 | `pane.view_activity` | missing | Not registered in this Linux baseline. | denied |
 | `pane.zoom` | supported | Registered local action; remote availability is a separate permission. | view |
-| `session.close` | supported | Registered local action; remote availability is a separate permission. | denied |
+| `session.close` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `session.collapse` | missing | Not registered in this Linux baseline. | denied |
 | `session.collapse_others` | missing | Not registered in this Linux baseline. | denied |
 | `session.expand` | missing | Not registered in this Linux baseline. | denied |
-| `session.new` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `session.next` | supported | Registered local action; remote availability is a separate permission. | denied |
+| `session.new` | supported | Registered local action; remote availability is a separate permission. | workspace |
+| `session.next` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `session.open_on_web` | platform specific | Mac-specific integration or update workflow; no direct Linux contract yet. | denied |
-| `session.previous` | supported | Registered local action; remote availability is a separate permission. | denied |
+| `session.previous` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `session.refresh` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `session.rename` | supported | Registered local action; remote availability is a separate permission. | denied |
+| `session.rename` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `session.select` | supported | Registered local action; remote availability is a separate permission. | view |
 | `session.switch` | supported | Registered local action; remote availability is a separate permission. | denied |

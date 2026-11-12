@@ -150,7 +150,12 @@ class Desktop:
         self.env = dict(os.environ, DISPLAY=self.display, REX_LINUX_NO_UPDATE_CHECK="1")
         self.env.pop("WAYLAND_DISPLAY", None)
         # The Add host list runs `tailscale status`: give the client one that finds no tailnet.
-        self.stub = tempfile.mkdtemp(prefix="rex-no-tailscale-")
+        cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+        cache.mkdir(parents=True, exist_ok=True)
+        # The stub must be executable even on workstations with a noexec /tmp;
+        # execvp could otherwise skip it and run the real tailscale farther on PATH.
+        self.stub = tempfile.mkdtemp(prefix=f"cwt-rex-x11-{os.getpid()}-", dir=cache)
+        (Path(self.stub) / "OWNER").write_text(f"Private X11 acceptance helper, PID {os.getpid()}\n")
         stub = Path(self.stub) / "tailscale"
         stub.write_text("#!/bin/sh\nexit 1\n")
         stub.chmod(0o755)
@@ -190,10 +195,14 @@ class Desktop:
         subprocess.run(["import", "-window", window, str(OUT / f"{name}.png")], env=self.env, check=True)
 
     def close(self):
-        for p in self.apps:
-            p.terminate()
-        for p in (self.wm, self.server):
-            p.terminate()
+        for p in [*self.apps, self.wm, self.server]:
+            if p.poll() is None:
+                p.terminate()
+            try:
+                p.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                p.kill()
+                p.wait(timeout=5)
         shutil.rmtree(self.stub, ignore_errors=True)
 
 

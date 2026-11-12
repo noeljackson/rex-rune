@@ -26,6 +26,8 @@ mod polish_tests;
 mod remote_session_tests;
 #[path = "remote_tests.rs"]
 mod remote_tests;
+#[path = "remote_workspace_tests.rs"]
+mod remote_workspace_tests;
 #[path = "settings_tests.rs"]
 mod settings_tests;
 #[path = "tab_tests.rs"]
@@ -64,6 +66,7 @@ fn workspace_hosts(count: usize) -> Workspace {
                     format!("unix:///nonexistent/rex-test-{i}.sock")
                 },
                 remote_control: false,
+                workspace_control: false,
                 collapsed: false,
                 shell: None,
             })
