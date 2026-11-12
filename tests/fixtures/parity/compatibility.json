@@ -1,0 +1,843 @@
+{
+  "format": 1,
+  "baseline": "mac-preview14.json",
+  "actions": [
+    {
+      "name": "client.agents.setup",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.appearance.switch_mode",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.close",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.config.copy_path",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.config.reload",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.debug.copy",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.diagnostics",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.find.next",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "client.search.next"
+    },
+    {
+      "name": "client.find.open",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "client.search"
+    },
+    {
+      "name": "client.find.previous",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "client.search.previous"
+    },
+    {
+      "name": "client.font.decrease",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.font.increase",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.font.reset",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.host.add",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.host.remove",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.host.switch",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.key.forward",
+      "status": "binding",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Special keymap forwarding action; it is not a client.perform declaration."
+    },
+    {
+      "name": "client.mode.enter",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.mode.exit",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.mode.exit_all",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.notice.dismiss",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.onboarding",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.pair_device",
+      "status": "platform_specific",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Mac-specific integration or update workflow; no direct Linux contract yet."
+    },
+    {
+      "name": "client.palette.toggle",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.pane_header.reveal",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.permissions",
+      "status": "platform_specific",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Mac-specific integration or update workflow; no direct Linux contract yet."
+    },
+    {
+      "name": "client.prompt.next",
+      "status": "unsupported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "OSC 133 prompt navigation has not been imported; upstream PR 60 implements it."
+    },
+    {
+      "name": "client.prompt.previous",
+      "status": "unsupported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "OSC 133 prompt navigation has not been imported; upstream PR 60 implements it."
+    },
+    {
+      "name": "client.quick_look",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.scroll.page_down",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.scroll.page_up",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.server.restart",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.settings",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.shortcuts.edit",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.sidebar.activity.by_priority",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.sidebar.activity.by_session",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.sidebar.activity.toggle",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.sidebar.filter.focus",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.sidebar.toggle",
+      "status": "supported",
+      "registered": true,
+      "remote": "view",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.tab.close",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.tab.close_others",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.tab.goto",
+      "status": "supported",
+      "registered": true,
+      "remote": "view",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.tab.move",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.tab.move.backward",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "client.tab.move"
+    },
+    {
+      "name": "client.tab.move.forward",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "client.tab.move"
+    },
+    {
+      "name": "client.tab.move_to_new_window",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.tab.new",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.tab.next",
+      "status": "supported",
+      "registered": true,
+      "remote": "view",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.tab.previous",
+      "status": "supported",
+      "registered": true,
+      "remote": "view",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.tab.rename",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.tab_style.toggle",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.theme.change",
+      "status": "partial",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Picker supported; the optional theme name argument is not supported."
+    },
+    {
+      "name": "client.theme.import",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.toolbar.reveal",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.update.accept",
+      "status": "platform_specific",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Mac-specific integration or update workflow; no direct Linux contract yet."
+    },
+    {
+      "name": "client.update.accept_when_idle",
+      "status": "platform_specific",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Mac-specific integration or update workflow; no direct Linux contract yet."
+    },
+    {
+      "name": "client.update.check",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.update.install",
+      "status": "platform_specific",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Mac-specific integration or update workflow; no direct Linux contract yet."
+    },
+    {
+      "name": "client.update.set_automation",
+      "status": "platform_specific",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Mac-specific integration or update workflow; no direct Linux contract yet."
+    },
+    {
+      "name": "client.update.set_channel",
+      "status": "platform_specific",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Mac-specific integration or update workflow; no direct Linux contract yet."
+    },
+    {
+      "name": "client.update.status",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.version.copy",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "client.visibility.toggle",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.window.close",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.window.fullscreen.toggle",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "client.window.new",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "pane.balance",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.close",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.close_others",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.copy",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.copy_id",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.float",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "pane.focus",
+      "status": "partial",
+      "registered": true,
+      "remote": "view",
+      "notes": "Explicit wrap is forwarded; omitted wrap preserves the server default (false on the tested API 12 server), while Mac defaults to true."
+    },
+    {
+      "name": "pane.focus.down",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.focus"
+    },
+    {
+      "name": "pane.focus.left",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.focus"
+    },
+    {
+      "name": "pane.focus.right",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.focus"
+    },
+    {
+      "name": "pane.focus.up",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.focus"
+    },
+    {
+      "name": "pane.focus_next",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.focus_previous",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.go_to",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "pane.go_to_directory",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "pane.insert_path",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "pane.minimize_all_floating",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "pane.minimize_floating",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "pane.move",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.move.down",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.move"
+    },
+    {
+      "name": "pane.move.left",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.move"
+    },
+    {
+      "name": "pane.move.right",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.move"
+    },
+    {
+      "name": "pane.move.up",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.move"
+    },
+    {
+      "name": "pane.move_to_new_tab",
+      "status": "unsupported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Server API 12 cannot make an empty tab around an existing block without starting another program."
+    },
+    {
+      "name": "pane.move_to_tab",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.new_floating",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "pane.paste",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.rename",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.resize",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.select_all",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.send_key",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.split",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "pane.split.auto",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.split"
+    },
+    {
+      "name": "pane.split.down",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.split"
+    },
+    {
+      "name": "pane.split.left",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.split"
+    },
+    {
+      "name": "pane.split.right",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.split"
+    },
+    {
+      "name": "pane.split.up",
+      "status": "alias",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Uses the existing handler; no additional Commands row.",
+      "target": "pane.split"
+    },
+    {
+      "name": "pane.view_activity",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "pane.zoom",
+      "status": "supported",
+      "registered": true,
+      "remote": "view",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "session.close",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "session.collapse",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "session.collapse_others",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "session.expand",
+      "status": "missing",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Not registered in this Linux baseline."
+    },
+    {
+      "name": "session.new",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "session.next",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "session.open_on_web",
+      "status": "platform_specific",
+      "registered": false,
+      "remote": "denied",
+      "notes": "Mac-specific integration or update workflow; no direct Linux contract yet."
+    },
+    {
+      "name": "session.previous",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "session.refresh",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "session.rename",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "session.select",
+      "status": "supported",
+      "registered": true,
+      "remote": "view",
+      "notes": "Registered local action; remote availability is a separate permission."
+    },
+    {
+      "name": "session.switch",
+      "status": "supported",
+      "registered": true,
+      "remote": "denied",
+      "notes": "Registered local action; remote availability is a separate permission."
+    }
+  ]
+}

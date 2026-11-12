@@ -367,6 +367,10 @@ Declare modes in the host's `init.lua`, using [Rex's key-mode syntax](https://ww
 
 ### Remote control
 
+The versioned [Mac action compatibility matrix](docs/compatibility/mac-actions.md)
+records supported names, aliases, argument differences and remote availability.
+It is checked against captured Mac action schemas without requiring a live Mac.
+
 Settings → Remote Hosts has a **Remote control** switch for each saved host,
 **off by default, including local hosts**. Changing an endpoint turns it off again.
 Commands can turn it on or off for the host on screen. With it on, `rex do` and

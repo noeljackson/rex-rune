@@ -445,10 +445,16 @@ impl Spec {
                 json!({"type":"object","properties":{"session_id":{"type":"string","minLength":1},"window_id":{"type":"string","minLength":1}},"required":["session_id"],"additionalProperties":false}),
             );
         }
+        if matches!(self.handler, Handler::FocusPane) {
+            return Some(json!({"type":"object","properties":{
+                "direction":{"type":"string","enum":["left","right","up","down"]},
+                "wrap":{"type":"boolean"}
+            },"required":["direction"],"additionalProperties":false}));
+        }
         let (key, schema) = match self.handler {
             Handler::Split => (
                 "direction",
-                json!({"type":"string","enum":SplitWay::ALL.map(SplitWay::arg)}),
+                json!({"type":"string","enum":["right","left","down","up","best_fit","auto"]}),
             ),
             Handler::FocusPane => (
                 "direction",
@@ -499,11 +505,12 @@ impl Spec {
             }
             Handler::Split => object.len() == 1 && split_way(args).is_some(),
             Handler::FocusPane => {
-                object.len() == 1
+                object.keys().all(|key| key == "direction" || key == "wrap")
                     && matches!(
                         args["direction"].as_str(),
                         Some("left" | "right" | "up" | "down")
                     )
+                    && object.get("wrap").is_none_or(Value::is_boolean)
             }
             Handler::Scroll => {
                 object.len() == 1
