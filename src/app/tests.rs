@@ -12,6 +12,8 @@ mod compatibility_contract_tests;
 mod compatibility_tests;
 #[path = "find_tests.rs"]
 mod find_tests;
+#[path = "floating_tests.rs"]
+mod floating_tests;
 #[path = "menu_tests.rs"]
 mod menu_tests;
 #[path = "navigation_tests.rs"]
@@ -447,7 +449,7 @@ fn tabs_and_splits_start_the_right_hosts_shell() {
         serde_json::from_value(serde_json::json!({
             "revision": 1, "session_id": "cur", "active_window_id": "w",
             "windows": [{"window_id": "w", "focused_block_id": "block:f",
-                "layers": [{"kind": "tiled", "blocks": [{"block_id": "block:f"}]}]}]
+                "layers": [{"kind": "tiled", "bounds":[0,0,1,1], "layout":{"block_id":"block:f"}, "blocks": [{"block_id": "block:f"}]}]}]
         }))
         .unwrap(),
     );

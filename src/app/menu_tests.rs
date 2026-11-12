@@ -111,8 +111,8 @@ fn every_menu_separates_its_groups_and_ends_with_its_destructive_row() {
     assert_structured(&rt, "pane", "Close pane…");
     assert_eq!(
         rows(&rt).iter().map(|r| r.1).collect::<Vec<_>>(),
-        [0, 0, 0, 1, 1, 1, 1, 1, 2, 2, 3, 3, 3, 4],
-        "clipboard, layout (four sides and Zoom), the pane itself, its terminal, Close"
+        [0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 2, 2, 3, 3, 3, 4],
+        "clipboard, layout (four sides, Zoom and floating controls), the pane itself, its terminal, Close"
     );
     assert_eq!(label_color(&mut rt, "Close pane…"), rgb(danger()));
     assert_eq!(label_color(&mut rt, "Split right"), rgb(ink()));

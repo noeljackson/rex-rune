@@ -47,6 +47,10 @@ impl Workspace {
                 term.is_some_and(|t| t.status().live)
             }
             PaneAction::Zoom => self.pane_window(target).is_some_and(pane_header::can_zoom),
+            PaneAction::Float => super::floating::target_available(self, target, "pane.float"),
+            PaneAction::Minimize => {
+                super::floating::target_available(self, target, "pane.minimize_floating")
+            }
             _ => true,
         }
     }

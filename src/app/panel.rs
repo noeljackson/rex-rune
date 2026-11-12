@@ -101,6 +101,8 @@ impl Intent {
             Self::Pane(_, pane) => match pane {
                 PaneAction::Split(way) => ("pane.split", json!({"direction":way.arg()})),
                 PaneAction::Zoom => ("pane.zoom", Value::Null),
+                PaneAction::Float => ("pane.float", Value::Null),
+                PaneAction::Minimize => ("pane.minimize_floating", Value::Null),
                 PaneAction::Reconnect => ("pane.reconnect", Value::Null),
                 PaneAction::Close => ("pane.close", Value::Null),
                 PaneAction::Copy => ("pane.copy", Value::Null),
@@ -196,6 +198,8 @@ pub struct PaneTarget {
 
 #[derive(Clone, Copy, Debug)]
 pub enum PaneAction {
+    Float,
+    Minimize,
     Split(SplitWay),
     Zoom,
     Rename,
@@ -805,6 +809,8 @@ impl Workspace {
                     1,
                     PaneAction::Zoom,
                 ),
+                ("Float or dock pane", 1, PaneAction::Float),
+                ("Minimize floating pane", 1, PaneAction::Minimize),
                 ("Rename pane…", 2, PaneAction::Rename),
                 ("Copy pane ID", 2, PaneAction::CopyId),
                 ("Clear terminal", 3, PaneAction::Clear),

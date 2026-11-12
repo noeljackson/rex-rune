@@ -6,6 +6,8 @@
 
 ### Added
 
+- **Floating panes:** float/dock existing programs, explicitly create floating terminals, move/resize/raise/lower, and minimize/restore one or all layers. Headers provide drag, Dock and Minimize controls; corner handles resize and bottom capsules restore. Bindable actions accept Workspace remote control and acknowledge server results. Geometry, block IDs and minimized state remain server-owned across reconnects and view closure. API 12 requires an existing tiled docking anchor.
+
 - **Workspace remote control:** a separate per-host opt-in for CLI creation and pane management, preserving old view-only consent. Forms and destructive confirmations stay local and expire with the request; queued commands lose their grant on consent or endpoint changes. Server-backed remote actions reply after acknowledgement and refreshed UI state, with failures never replayed. A private CLI acceptance script covers creation, layout changes, confirmation, cancellation and expiry.
 
 - **Mac action compatibility contract:** versioned action metadata and a complete compatibility matrix for Rex Beta 0.1.0 (1925), with tests against its argument schemas. Reuses upstream PR 57's local aliases, pane move/resize/balance and key modes. `pane.split` also accepts `auto`, and `pane.focus` accepts an explicit `wrap`; existing Linux names and the eight-action remote allowed set are preserved.

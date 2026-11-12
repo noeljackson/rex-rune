@@ -17,7 +17,10 @@ fn sample_args(name: &str) -> Value {
     match name {
         "session.select" => json!({"session_id": "s"}),
         "pane.split" | "client.tab.move" => json!({"direction": "right"}),
-        "pane.move" | "pane.resize" => json!({"direction": "right"}),
+        "pane.move" | "pane.resize" | "pane.floating.move" | "pane.floating.resize" => {
+            json!({"direction": "right"})
+        }
+        "pane.floating.bounds" => json!({"bounds":[0.1,0.1,0.6,0.6]}),
         "client.mode.enter" => json!({"name":"resize"}),
         "pane.focus" => json!({"direction": "up"}),
         "pane.scroll" => json!({"lines": 3}),
@@ -32,7 +35,7 @@ fn chord(index: usize) -> String {
     const SECOND: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
     format!(
         "ctrl+alt+shift+f{}>{}",
-        9 + index / SECOND.len(),
+        1 + index / SECOND.len(),
         SECOND[index % SECOND.len()] as char
     )
 }

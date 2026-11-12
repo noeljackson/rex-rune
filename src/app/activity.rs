@@ -338,6 +338,7 @@ impl Workspace {
         };
         let host = self.hosts[index].id;
         self.deliver(Note {
+            source_block: None,
             summary,
             body,
             target: NoteTarget {
@@ -370,7 +371,7 @@ impl Workspace {
                         .and_then(|w| w.window_id.clone())
                 });
             if window.as_deref().is_some_and(|w| {
-                self.tab_seen(index, &notice.session, w) || self.tab_muted(index, w)
+                self.block_seen(index, &notice.session, &notice.block) || self.tab_muted(index, w)
             }) {
                 continue;
             }
@@ -387,6 +388,7 @@ impl Workspace {
             };
             let host = self.hosts[index].id;
             self.deliver(Note {
+                source_block: Some(notice.block),
                 summary,
                 body,
                 target: NoteTarget {

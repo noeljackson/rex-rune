@@ -79,6 +79,7 @@ pub struct Workspace {
     next_notice: u64,
     zoom_notice: Option<u64>,
     pub drag: Option<DividerDrag>,
+    pub(super) floating_drag: Option<super::floating::DragState>,
     /// Keys whose press went to a terminal; only their releases follow.
     pub forwarded: HashSet<super::bindings::Identity>,
     pub bindings: super::bindings::State,
@@ -258,6 +259,7 @@ impl Workspace {
             next_notice: 0,
             zoom_notice: None,
             drag: None,
+            floating_drag: None,
             forwarded: HashSet::new(),
             bindings: Default::default(),
             local_keymap,
@@ -615,6 +617,7 @@ impl Workspace {
         }
         if let Some(copy) = clipboard
             && self.window_focused
+            && self.focused_block().as_deref() == Some(copy.block.as_str())
             && self.panel.is_none()
             && index == self.active
             && rex_linux::connection::clipboard::accepts(
@@ -626,6 +629,7 @@ impl Workspace {
             tx.copy(copy.text);
         }
         self.observe_navigation();
+        self.record_desktop_focus();
         self.ring_bells(index, bells);
         self.track_activity(index);
         self.deliver_program_notices(index, notices);
@@ -647,8 +651,9 @@ impl Workspace {
         }
         self.claim_visible();
         let font = self.settings.font_size;
-        for ((host, _), term) in self.terminals.iter_mut() {
-            if *host == id && self.window_focused {
+        let visible = self.visible_terminal_keys();
+        for (key, term) in self.terminals.iter_mut() {
+            if visible.contains(key) && self.window_focused {
                 term.resize_if_owner(font);
             }
         }
@@ -669,11 +674,10 @@ impl Workspace {
         };
         let Some(window) = model.window() else { return };
         let id = self.hosts[self.active].id;
-        let blocks: Vec<String> = window
-            .layers
-            .iter()
-            .flat_map(|l| &l.blocks)
-            .filter_map(|b| b.block_id.clone())
+        let blocks: Vec<String> = rex_linux::layout::placements(window, None)
+            .0
+            .into_iter()
+            .map(|p| p.block)
             .filter(|b| !self.claimed.contains(&(id, b.clone())))
             .collect();
         if blocks.is_empty() {
@@ -803,11 +807,12 @@ impl Workspace {
     }
 
     pub fn refresh_terminal(&mut self, key: &(HostId, String)) {
+        let visible = self.visible_terminal_keys().contains(key);
         let font = self.settings.font_size;
         if let Some(term) = self.terminals.get_mut(key) {
             term.refresh();
             term.cache_images(self.images.as_ref());
-            if self.window_focused {
+            if self.window_focused && visible {
                 term.resize_if_owner(font);
             }
         }
@@ -992,7 +997,38 @@ impl Workspace {
     }
 
     pub fn focused_block(&self) -> Option<String> {
-        self.model().focused().map(str::to_owned)
+        let block = self.model().focused()?;
+        self.model()
+            .window()
+            .filter(|w| {
+                rex_linux::layout::placements(w, None)
+                    .0
+                    .iter()
+                    .any(|p| p.block == block)
+            })
+            .map(|_| block.to_owned())
+    }
+
+    pub(super) fn visible_terminal_keys(&self) -> HashSet<(HostId, String)> {
+        self.model()
+            .window()
+            .map(|w| {
+                rex_linux::layout::placements(w, None)
+                    .0
+                    .into_iter()
+                    .map(|p| (self.hosts[self.active].id, p.block))
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+
+    pub(super) fn block_seen(&self, index: usize, session: &str, block: &str) -> bool {
+        self.window_focused
+            && self.active == index
+            && self.model().selected.as_deref() == Some(session)
+            && self
+                .visible_terminal_keys()
+                .contains(&(self.hosts[index].id, block.to_owned()))
     }
 
     pub fn active_terminal(&self) -> Option<&Term> {
@@ -1069,6 +1105,20 @@ impl Workspace {
 
     pub fn request(&mut self, method: &str, mut payload: Value) {
         let resolved = self.desktop_focus(method, &payload);
+        if self.desktop.is_some()
+            && resolved.is_none()
+            && matches!(
+                method,
+                "session.focus_direction"
+                    | "session.focus_next_pane"
+                    | "session.focus_previous_pane"
+                    | "session.focus_next_window"
+                    | "session.focus_previous_window"
+            )
+        {
+            self.inform("No visible focus target in this desktop window; nothing was sent.");
+            return;
+        }
         let method = if let Some((method, value)) = &resolved {
             payload = value.clone();
             method.as_str()
@@ -1680,6 +1730,10 @@ impl Workspace {
             );
         };
         match action {
+            PaneAction::Float => super::floating::target(self, &target, "pane.float"),
+            PaneAction::Minimize => {
+                super::floating::target(self, &target, "pane.minimize_floating")
+            }
             PaneAction::Split(direction) => {
                 let layout = self.new_terminal(target.host);
                 let payload = self.split_payload(target.host, &target.block, direction, layout);
@@ -2159,8 +2213,9 @@ impl Workspace {
             term.last_size = None;
         }
         let font = self.settings.font_size;
-        for term in self.terminals.values_mut() {
-            if self.window_focused {
+        let visible = self.visible_terminal_keys();
+        for (key, term) in self.terminals.iter_mut() {
+            if self.window_focused && visible.contains(key) {
                 term.resize_if_owner(font);
             }
         }

@@ -21,6 +21,8 @@ pub struct NoteTarget {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Note {
+    /// Program messages name their pane, so minimizing it does not hide its notifications.
+    pub source_block: Option<String>,
     pub summary: String,
     pub body: String,
     pub target: NoteTarget,

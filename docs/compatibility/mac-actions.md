@@ -95,7 +95,7 @@ Imported upstream commits 99dc9db and c982398 (PR 57) provide local compatibilit
 | `pane.close_others` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `pane.copy` | supported | Registered local action; remote availability is a separate permission. | denied |
 | `pane.copy_id` | supported | Registered local action; remote availability is a separate permission. | denied |
-| `pane.float` | missing | Not registered in this Linux baseline. | denied |
+| `pane.float` | partial | Float/dock preserves the existing program; API 12 requires a remaining tiled docking anchor. | workspace |
 | `pane.focus` | partial | Explicit wrap is forwarded; omitted wrap preserves the server default (false on the tested API 12 server), while Mac defaults to true. | view |
 | `pane.focus.down` | alias | `pane.focus` | workspace |
 | `pane.focus.left` | alias | `pane.focus` | workspace |
@@ -106,8 +106,8 @@ Imported upstream commits 99dc9db and c982398 (PR 57) provide local compatibilit
 | `pane.go_to` | missing | Not registered in this Linux baseline. | denied |
 | `pane.go_to_directory` | missing | Not registered in this Linux baseline. | denied |
 | `pane.insert_path` | missing | Not registered in this Linux baseline. | denied |
-| `pane.minimize_all_floating` | missing | Not registered in this Linux baseline. | denied |
-| `pane.minimize_floating` | missing | Not registered in this Linux baseline. | denied |
+| `pane.minimize_all_floating` | supported | Toggle all floating layers; hiding all requires visible tiled content. | workspace |
+| `pane.minimize_floating` | supported | Toggle minimizing the focused float or restoring the most recent minimized float. | workspace |
 | `pane.move` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `pane.move.down` | alias | `pane.move` | workspace |
 | `pane.move.left` | alias | `pane.move` | workspace |
@@ -115,7 +115,7 @@ Imported upstream commits 99dc9db and c982398 (PR 57) provide local compatibilit
 | `pane.move.up` | alias | `pane.move` | workspace |
 | `pane.move_to_new_tab` | unsupported | Server API 12 cannot make an empty tab around an existing block without starting another program. | denied |
 | `pane.move_to_tab` | supported | Registered local action; remote availability is a separate permission. | workspace |
-| `pane.new_floating` | missing | Not registered in this Linux baseline. | denied |
+| `pane.new_floating` | supported | Explicitly creates a new terminal in a server-owned floating layer. | workspace |
 | `pane.paste` | supported | Registered local action; remote availability is a separate permission. | denied |
 | `pane.rename` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `pane.resize` | supported | Registered local action; remote availability is a separate permission. | workspace |

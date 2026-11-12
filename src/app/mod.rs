@@ -9,6 +9,7 @@ mod desktop;
 mod dialogs;
 mod discover;
 mod find;
+mod floating;
 mod font_size;
 mod fonts;
 mod help;
@@ -110,7 +111,7 @@ pub(crate) fn view(s: &Workspace, cx: &mut Cx<Workspace>) -> El {
         .key("window")
         .pointer_buttons([rune::PointerButton::Back, rune::PointerButton::Forward])
         .on_press_tx(|s: &mut Workspace, tx: &mut Tx| {
-            if s.panel.is_some() || s.drag.is_some() {
+            if s.panel.is_some() || s.drag.is_some() || s.floating_drag.is_some() {
                 return;
             }
             let action = match tx.button() {
@@ -148,6 +149,7 @@ pub(crate) fn view(s: &Workspace, cx: &mut Cx<Workspace>) -> El {
 }
 
 fn poll(s: &mut Workspace, _: f64, tx: &mut Tx) -> bool {
+    let floating_changed = s.poll_floating_drag();
     let now = std::time::Instant::now();
     let desktop_changed = s.poll_desktop(now, tx);
     let remote_changed = s.poll_remote_navigation(now);
@@ -157,7 +159,8 @@ fn poll(s: &mut Workspace, _: f64, tx: &mut Tx) -> bool {
         || remote_changed
         || workspace_changed
         || updates_changed
-        || desktop_changed;
+        || desktop_changed
+        || floating_changed;
     if let Some(panel) = &mut s.panel
         && std::mem::take(&mut panel.reveal)
     {
