@@ -1336,10 +1336,8 @@ fn about_is_keyboard_reachable_and_opens_links_and_copies_details() {
     let mut ws = workspace();
     ws.perform(Intent::Settings, &mut rune::Tx::default());
     let mut rt = runtime(ws);
-    // The existing Settings section list exposes About without another shortcut.
-    for _ in 0..7 {
-        press(&mut rt, Key::Down);
-    }
+    // Settings opens on search; its result exposes About without another shortcut.
+    press(&mut rt, Key::Text("About".into()));
     press(&mut rt, Key::Enter);
     assert_eq!(
         rt.state.settings_section,
@@ -1360,8 +1358,12 @@ fn about_is_keyboard_reachable_and_opens_links_and_copies_details() {
     // The header's two copies come first, then the project links.
     let clipboard = rune::clipboard::memory();
     rt.use_clipboard(&clipboard);
-    press(&mut rt, Key::Tab); // Close
-    press(&mut rt, Key::Tab);
+    for _ in 0..24 {
+        if focused(&rt).is_some_and(|p| p.ends_with("about-copy")) {
+            break;
+        }
+        press(&mut rt, Key::Tab);
+    }
     assert!(focused(&rt).unwrap().ends_with("about-copy"));
     press(&mut rt, Key::Enter);
     assert_eq!(
@@ -1434,7 +1436,7 @@ fn the_toolbar_settings_button_opens_settings() {
 }
 
 #[test]
-fn forms_focus_their_first_field_and_settings_start_on_its_section_list() {
+fn forms_focus_their_first_field_and_settings_start_on_search() {
     let mut ws = workspace();
     ws.open_panel(
         PanelKind::Form(Form::RenameSession(None)),
@@ -1464,19 +1466,16 @@ fn forms_focus_their_first_field_and_settings_start_on_its_section_list() {
         Some(PanelKind::Settings)
     ));
     let path = focused(&rt).expect("a focused control");
-    assert!(
-        path.ends_with("settings-section:interface"),
-        "settings focus {path}"
-    );
+    assert!(path.contains("settings-search"), "settings focus {path}");
     // The keyboard path scripts/x11-smoke.py takes to the font stepper.
-    press(&mut rt, Key::Down);
+    press(&mut rt, Key::Text("typography".into()));
     press(&mut rt, Key::Enter);
     assert_eq!(
         rt.state.settings_section,
         super::panel::SettingsSection::Terminal
     );
     let font = rt.state.settings.font_size;
-    for _ in 0..4 {
+    for _ in 0..7 {
         press(&mut rt, Key::Tab);
     }
     let path = focused(&rt).expect("a focused control");
