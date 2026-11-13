@@ -662,3 +662,20 @@ fn settings_history_restores_the_previous_page_scroll_offset() {
     assert!(close(rt.state.settings_navigation.offset.get(), before));
     std::fs::remove_file(&rt.state.settings_path).ok();
 }
+
+#[test]
+fn native_settings_acceptance_points_hit_the_padding_controls() {
+    for size in [(1440., 900.), (640., 480.)] {
+        let rt = settings_at(SettingsSection::Panes, 1., size);
+        let d = rect(&rt, "dialog");
+        for (key, offset) in [("pane-padding-larger", 40.), ("pane-padding-smaller", 132.)] {
+            let r = rect(&rt, key);
+            let (x, y) = (d[0] + d[2] - offset, d[1] + 293.);
+            assert!(
+                x > r[0] && x < r[0] + r[2] && y > r[1] && y < r[1] + r[3],
+                "{key}: point ({x},{y}) outside {r:?} at {size:?}"
+            );
+        }
+        std::fs::remove_file(&rt.state.settings_path).ok();
+    }
+}

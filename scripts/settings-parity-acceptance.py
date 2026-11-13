@@ -91,8 +91,9 @@ def run():
             module=load("private_x11",ROOT/"scripts/rune-acceptance-x11.py")
             module.OUT=work/"captures"
             desktop=module.Desktop()
+        desktop.env={k:v for k,v in desktop.env.items() if not k.startswith("REX_")}
         launch_env={k:env[k] for k in ("HOME","XDG_CONFIG_HOME","XDG_STATE_HOME","XDG_RUNTIME_DIR","REX_SERVER","REX_LINUX_NO_UPDATE_CHECK","SHELL")}
-        app,window=desktop.launch(sid,config,extra_env=launch_env,log=(work/"app.log").open("w"),binary=BINARY)
+        app,window=desktop.launch(sid,config,size=os.environ.get("REX_ACCEPTANCE_WINDOW_SIZE","1440x900"),extra_env=launch_env,log=(work/"app.log").open("w"),binary=BINARY)
         owned.append(app)
         def view():
             return api("session.view",session_id=sid)
@@ -135,15 +136,11 @@ def run():
         search("pane padding")
         capture("settings-panes")
         assert json.loads(config.read_text())["pane_padding"] == preferences["pane_padding"]
-        # From the page heading, Tab visits Close, then the padding - and +.
-        desktop.key("Tab")
-        desktop.key("Tab")
-        desktop.key("Tab")
-        desktop.key("Return")
+        # Points are pinned to the padding buttons by the headless geometry check.
+        click(left+dialog_width-40,top+293)
         wait(lambda:json.loads(config.read_text())["pane_padding"]==9,"padding control did not apply")
         capture("settings-panes-edited")
-        desktop.key("shift+Tab")
-        desktop.key("Return")
+        click(left+dialog_width-132,top+293)
         wait(lambda:json.loads(config.read_text())["pane_padding"]==8,"fixture padding was not restored")
         desktop.key("alt+Left")
         time.sleep(.3)
