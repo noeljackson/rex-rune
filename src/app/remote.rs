@@ -92,7 +92,9 @@ impl Workspace {
         }
         let selecting = request.action == actions::SELECT_SESSION;
         let model = &self.hosts[host].model;
-        let refused = if self.panel.is_some() {
+        let refused = if self.drag.is_some() || self.floating_drag.is_some() {
+            Some("A layout drag is in progress")
+        } else if self.panel.is_some() {
             Some("A dialog or popup is open")
         } else if field_focused {
             Some("A text field has focus")
@@ -178,6 +180,7 @@ impl Workspace {
                 "No terminal is on screen; nothing was done.",
             ));
         }
+        super::floating::validate(self, &request.action, &request.args)?;
         Ok(())
     }
 

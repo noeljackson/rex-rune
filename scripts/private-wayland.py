@@ -18,7 +18,9 @@ KEYMAP = runpy.run_path(str(ROOT / "scripts/demo-record.py"))
 
 
 class Desktop:
-    def __init__(self, work, base):
+    def __init__(self, work, base, maximize=False):
+        self.maximize = maximize
+        self.scale = float(os.environ.get("REX_ACCEPTANCE_SCALE", "1"))
         self.work = work
         self.apps = []
         self.env = dict(base, WLR_BACKENDS="headless", WLR_RENDERER="vulkan", WLR_HEADLESS_OUTPUTS="1")
@@ -26,7 +28,8 @@ class Desktop:
             self.env.pop(key, None)
         config = work / "labwc"
         config.mkdir()
-        (config / "rc.xml").write_text('<labwc_config><core><decoration>client</decoration></core><keyboard><keybind key="A-Tab"><action name="NextWindow"/></keybind></keyboard></labwc_config>')
+        rule = '<windowRules><windowRule identifier="dev.shuv.rex-linux"><action name="Maximize"/></windowRule></windowRules>' if maximize else ''
+        (config / "rc.xml").write_text('<labwc_config><core><decoration>client</decoration></core><keyboard><keybind key="A-Tab"><action name="NextWindow"/></keybind></keyboard>' + rule + '</labwc_config>')
         marker = work / "wayland-display"
         self.wm = subprocess.Popen(["labwc", "-C", str(config), "-s", "sh -c " + shlex.quote("printf '%s' \"$WAYLAND_DISPLAY\" > " + shlex.quote(str(marker)))], env=self.env, stdout=(work / "labwc.log").open("w"), stderr=subprocess.STDOUT)
         self.server = None
@@ -74,7 +77,24 @@ class Desktop:
         time.sleep(1.5)
         return app, self.focused
 
+    def drive(self, *lines):
+        self.server.stdin.write("".join(line + "\n" for line in lines))
+        self.server.stdin.flush()
+        time.sleep(.04)
+
     def x(self, *args):
+        if args[0] == "getwindowgeometry":
+            assert self.maximize, "geometry is defined only for this helper's maximized fixture"
+            return f"X=0\nY=0\nWIDTH={round(1920/self.scale)}\nHEIGHT={round(1200/self.scale)}"
+        if args[0] == "mousemove":
+            x,y = map(float,args[-2:])
+            self.drive(f"move {round(x*self.scale)} {round(y*self.scale)}")
+            return ""
+        if args[0] in ("mousedown","mouseup","click"):
+            button = {1:272,2:274,3:273}[int(args[1])]
+            if args[0] != "mouseup": self.drive(f"down {button}")
+            if args[0] != "mousedown": self.drive(f"up {button}")
+            return ""
         if args[0] == "search":
             return "\n".join(self._windows())
         if args[0] == "windowfocus":

@@ -183,6 +183,16 @@ specs! {
     "client.mode.exit_all" => Compatibility,
     "client.scroll.page_up" => Compatibility,
     "client.scroll.page_down" => Compatibility,
+    "pane.float" => Compatibility,
+    "pane.new_floating" => Compatibility,
+    "pane.minimize_floating" => Compatibility,
+    "pane.minimize_all_floating" => Compatibility,
+    "pane.restore_floating" => Compatibility,
+    "pane.floating.bounds" => Compatibility,
+    "pane.floating.move" => Compatibility,
+    "pane.floating.resize" => Compatibility,
+    "pane.floating.raise" => Compatibility,
+    "pane.floating.lower" => Compatibility,
     "client.window.new" => Compatibility,
     "client.window.close" => Compatibility,
     "client.window.fullscreen.toggle" => Compatibility,
@@ -209,6 +219,16 @@ impl Spec {
         use Handler::*;
         match self.handler {
             Compatibility => match self.name {
+                "pane.float"
+                | "pane.new_floating"
+                | "pane.minimize_floating"
+                | "pane.minimize_all_floating"
+                | "pane.restore_floating"
+                | "pane.floating.bounds"
+                | "pane.floating.move"
+                | "pane.floating.resize"
+                | "pane.floating.raise"
+                | "pane.floating.lower" => Remote::Workspace,
                 "client.window.new"
                 | "client.window.close"
                 | "client.window.fullscreen.toggle"
@@ -313,6 +333,8 @@ impl Spec {
         matches!(
             self.name,
             "pane.resize"
+                | "pane.floating.move"
+                | "pane.floating.resize"
                 | "client.scroll.page_up"
                 | "client.scroll.page_down"
                 | "client.find.next"

@@ -29,6 +29,94 @@ fn rename() -> HostCommand {
     }
 }
 
+#[tokio::test(flavor = "current_thread")]
+async fn minimized_layers_do_not_start_streams_and_existing_streams_are_hidden_then_retired() {
+    let work = async {
+        let mut model = HostModel {
+            connected: true,
+            visible: true,
+            selected: Some(SESSION.into()),
+            sessions: boot().attach_all.sessions,
+            ..Default::default()
+        };
+        let view:session::ViewResponse=serde_json::from_value(json!({"session_id":SESSION,"revision":1,"active_window_id":"w","windows":[{"window_id":"w","layers":[
+            {"kind":"tiled","blocks":[{"block_id":"block:a","creator_name":"com.superlogical.terminal"}]},
+            {"kind":"floating","state":"minimized","blocks":[{"block_id":"block:b","creator_name":"com.superlogical.terminal"}]}
+        ]}]})).unwrap();
+        model.views.insert(SESSION.into(), view);
+        let shared = Shared {
+            model: Arc::new(Mutex::new(model)),
+            wake: flume::unbounded().0,
+        };
+        let (sender, _) = flume::unbounded();
+        let mut workers = HashMap::new();
+        let endpoint = "unix:///nonexistent/rex-minimized-stream-test.sock";
+        reconcile(endpoint, &shared, &sender, &mut workers);
+        assert!(workers.contains_key("block:a"));
+        assert!(
+            !workers.contains_key("block:b"),
+            "minimized attachment starts no terminal data stream"
+        );
+        shared
+            .model
+            .lock()
+            .unwrap()
+            .views
+            .get_mut(SESSION)
+            .unwrap()
+            .windows[0]
+            .layers[1]
+            .state = None;
+        reconcile(endpoint, &shared, &sender, &mut workers);
+        assert!(workers.contains_key("block:b"));
+        let (commands, received) = flume::unbounded();
+        workers.get_mut("block:b").unwrap().commands = commands;
+        shared
+            .model
+            .lock()
+            .unwrap()
+            .views
+            .get_mut(SESSION)
+            .unwrap()
+            .windows[0]
+            .layers[1]
+            .state = Some("minimized".into());
+        reconcile(endpoint, &shared, &sender, &mut workers);
+        assert!(
+            workers.contains_key("block:b"),
+            "minimizing keeps the existing worker and frame"
+        );
+        assert!(
+            received
+                .try_iter()
+                .any(|c| matches!(c, DataCommand::Visible(false)))
+        );
+        shared
+            .model
+            .lock()
+            .unwrap()
+            .views
+            .get_mut(SESSION)
+            .unwrap()
+            .windows[0]
+            .layers
+            .pop();
+        reconcile(endpoint, &shared, &sender, &mut workers);
+        assert!(!workers.contains_key("block:b"));
+        assert!(
+            !shared
+                .model
+                .lock()
+                .unwrap()
+                .terminals
+                .contains_key("block:b")
+        );
+        // No yield: the private data tasks never need to connect, and each aborts on drop.
+        drop(workers);
+    };
+    tokio::task::LocalSet::new().run_until(work).await;
+}
+
 #[tokio::test]
 async fn desktop_close_waits_for_the_reply_ack_and_revocation_refuses_it() {
     for allowed in [true, false] {

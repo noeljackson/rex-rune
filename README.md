@@ -363,12 +363,14 @@ Settings → Shortcuts lists supported actions even when **Unbound**, with their
 | Aliases | `pane.focus.left/right/up/down`, `pane.split.left/right/up/down/auto`, `pane.move.left/right/up/down`; `client.tab.move.backward/forward`; `client.find.open/next/previous` for `client.search[.next/.previous]`; `client.theme.change` for `client.theme.choose`. Find next/previous also accept `when = "searching"`. |
 | Recognized, not supported | `client.prompt.previous/next`: prompt positions in scrollback are not tracked. `pane.move_to_new_tab`: the supported server API cannot create a window containing an existing block; `session.new_window` starts new programs. These produce explicit Problems diagnostics and a notice when invoked, not silent no-ops. |
 | Supported | `client.window.new`, `client.window.close`, `client.window.fullscreen.toggle`, `client.tab.move_to_new_window`: independent native desktop views, individually targeted by their client labels, available remotely with Workspace consent. Moving the last tab keeps a second view; it never creates a replacement shell. |
-| Not applicable | Mac system permissions, Quick Look and Sparkle updater actions. Floating-pane controls and other reference actions not listed here remain unimplemented. |
+| Supported | `pane.new_floating`, `pane.minimize_floating`, `pane.minimize_all_floating`; `pane.float` toggles floating/docking while keeping an existing tiled docking anchor. Drag a floating header to move it, drag its bottom-right corner to resize, and use its Dock/Minimize buttons or bottom restore capsules. [Floating controls and CLI recipes](docs/compatibility/floating-panes.md). |
+| Not applicable | Mac system permissions, Quick Look and Sparkle updater actions. Other reference actions not listed here remain unimplemented. |
 
 Declare modes in the host's `init.lua`, using [Rex's key-mode syntax](https://www.superlogical.com/rex/docs/customize/key-modes); local `shortcuts.json` can bind entry/exit actions but does not define mode-scoped keys. Modes are cleared when the host, session, connection or keymap changes. Resize amounts and the same-session move picker above describe Linux behavior: the Mac action index does not publish full argument schemas, and exact Mac behavior beyond its documented examples is not claimed. Unsupported prompt jumps and move-to-new-tab remain gaps in [#44](https://github.com/shuv1337/rex-rune/issues/44).
 
 ### Remote control
 
+The [CLI workspace recipes](docs/compatibility/cli-recipes.md) cover creation, rename, layout and locally confirmed close.
 The versioned [Mac action compatibility matrix](docs/compatibility/mac-actions.md)
 records supported names, aliases, argument differences and remote availability.
 It is checked against captured Mac action schemas without requiring a live Mac.
@@ -409,7 +411,7 @@ acknowledged, or fails after five seconds. Unknown sessions/tabs return `not_fou
 All other requests must match the host, session and pane on screen. Navigation runs only
 after a pause in typing, and never while a text field has focus. The pause must
 last at least 1.5 seconds. New remote actions are refused while a text field has
-focus, a panel is open or a key sequence is pending. A form or confirmation opened
+focus, a panel is open, a layout drag is active or a key sequence is pending. A form or confirmation opened
 by an accepted Workspace request can be completed by the local user only. Requests not acted on within
 five seconds are discarded, including time buffered during a busy connection
 step (counted conservatively from that step's start). Replies never cross a reconnect.
@@ -566,6 +568,8 @@ Lua forwarding, queued client actions, file/server reload, removals and the
 send-key escape hatch and explicit remote-action refusal on its own disposable Rex server and Xvfb display. It uses
 `target/release/rex-linux` unless `REX_BIN` selects another build, and preserves
 logs/captures in the printed temporary directory.
+
+The [parity acceptance guide](docs/compatibility/acceptance.md) gives private-server commands for view consent, workspace control, desktop windows and floating panes, including Wayland at 150% scale.
 
 The `scripts/` directory holds integration checks; each script's docstring lists its requirements (Xvfb, xdotool, a `rex` binary, `wayland-info`, …). `x11-smoke.py`, `rune-acceptance-x11.py` and `wayland-seat-smoke.py` use a server you start: they require `REX_SERVER` to name a disposable one (autostart is off, and they exit rather than fall back to the default server); every other script starts its own private server. Every script that launches the client honours `REX_BIN`, and runs it with a `tailscale` that finds no tailnet and no update check. X11 checks use an isolated display, and those that select text by pointer pin the pane padding in their private `workspace.json`, so pointer positions come from the layout they set rather than the app's default. Of the Wayland scripts, `mouse-check.py`, `readme-screenshot.py` and `demo-record.py` start a private headless compositor; `wayland-seat-smoke.py` opens its window on the compositor `WAYLAND_DISPLAY` names, so point it at a disposable one.
 

@@ -37,7 +37,11 @@ pub const REPORT_ISSUE: &str = "client.issue.report";
 /// Registered actions with no row: each needs an argument Commands cannot ask for, or is
 /// the list itself.
 #[cfg(test)]
-pub const NOT_LISTED: [(&str, &str); 29] = [
+pub const NOT_LISTED: [(&str, &str); 30] = [
+    (
+        "pane.floating.bounds",
+        "needs an explicit normalized rectangle; Commands offers directional move and resize",
+    ),
     (
         "client.prompt.previous",
         "recognized but prompt navigation is not implemented",
@@ -587,6 +591,36 @@ impl Workspace {
                         format!("{} {}", actions::find(action).unwrap().title(), side.arg()),
                         Intent::ClientAction(action, serde_json::json!({"direction":side.arg()})),
                     )
+                    .section(3),
+                );
+            }
+        }
+        for name in [
+            "pane.float",
+            "pane.new_floating",
+            "pane.minimize_floating",
+            "pane.minimize_all_floating",
+            "pane.restore_floating",
+            "pane.floating.raise",
+            "pane.floating.lower",
+        ] {
+            rows.push(
+                Command::action(name, G, super::floating::title(name), name)
+                    .enabled(super::floating::validate(self, name, &Value::Null).is_ok())
+                    .section(3),
+            );
+        }
+        for action in ["pane.floating.move", "pane.floating.resize"] {
+            for side in ["left", "right", "up", "down"] {
+                let args = serde_json::json!({"direction":side});
+                rows.push(
+                    Command::new(
+                        format!("{action}.{side}"),
+                        G,
+                        format!("{} {side}", super::floating::title(action)),
+                        Intent::ClientAction(action, args.clone()),
+                    )
+                    .enabled(super::floating::validate(self, action, &args).is_ok())
                     .section(3),
                 );
             }

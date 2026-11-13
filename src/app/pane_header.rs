@@ -82,10 +82,17 @@ pub fn rows(s: &Workspace, window: &Window) -> bool {
 /// A tab with one pane, not zoomed, draws it edge to edge: no card or margin, and no header
 /// unless headers are always shown.
 pub fn full_bleed(s: &Workspace, window: &Window) -> bool {
-    single(window) && s.settings.pane_header != PaneHeader::Always
+    single(window)
+        && s.settings.pane_header != PaneHeader::Always
+        && !window.layers.iter().any(|l| {
+            l.kind != "tiled" && l.state.as_deref() != Some("minimized") && !l.blocks.is_empty()
+        })
 }
 
 pub fn placement(s: &Workspace, window: &Window, block: &str) -> Placement {
+    if super::floating::layer_for(window, block).is_some_and(|l| l.kind != "tiled") {
+        return Placement::Row;
+    }
     if rows(s, window) {
         Placement::Row
     } else if s.header_reveal.pinned
@@ -185,7 +192,48 @@ pub fn actions(s: &Workspace, window: &Window, block: &str, width: f32, lit: boo
     };
     let on = |action: PaneAction| Some((block.to_owned(), action));
     let mut cluster = row().key(format!("pane-actions:{block}")).center_y();
-    if width >= ROOMY {
+    let floating = super::floating::is_floating(window, block);
+    if floating {
+        let target = s.target(block);
+        let dock = target
+            .as_ref()
+            .is_some_and(|t| super::floating::target_available(s, t, "pane.float"));
+        let hide = target
+            .as_ref()
+            .is_some_and(|t| super::floating::target_available(s, t, "pane.minimize_floating"));
+        cluster = cluster
+            .child(button(
+                format!("pane-dock:{block}"),
+                &SPLIT_RIGHT,
+                "Dock pane",
+                if dock {
+                    hint("Dock pane", "pane.float", Value::Null)
+                } else {
+                    "No tiled docking anchor in this tab".into()
+                },
+                lit,
+                false,
+                if dock { on(PaneAction::Float) } else { None },
+            ))
+            .child(button(
+                format!("pane-minimize:{block}"),
+                &MINUS,
+                "Minimize floating pane",
+                if hide {
+                    hint(
+                        "Minimize floating pane",
+                        "pane.minimize_floating",
+                        Value::Null,
+                    )
+                } else {
+                    "Keep at least one visible pane".into()
+                },
+                lit,
+                false,
+                if hide { on(PaneAction::Minimize) } else { None },
+            ));
+    }
+    if width >= ROOMY && !floating {
         cluster = cluster
             .child(button(
                 format!("pane-split-right:{block}"),

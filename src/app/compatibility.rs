@@ -49,6 +49,9 @@ pub fn alias(name: &str) -> Option<(&'static str, Value)> {
 }
 
 pub fn title(name: &str) -> &'static str {
+    if super::floating::is_action(name) {
+        return super::floating::title(name);
+    }
     match name {
         "client.window.new" => "New desktop window",
         "client.window.close" => "Close desktop window",
@@ -113,6 +116,9 @@ pub fn category(name: &str) -> &'static str {
 }
 
 pub fn schema(name: &str) -> Option<Value> {
+    if super::floating::is_action(name) {
+        return super::floating::schema(name);
+    }
     let direction = json!({"type":"string","enum":["left","right","up","down"]});
     Some(match name {
         "pane.resize" => {
@@ -135,6 +141,9 @@ pub fn schema(name: &str) -> Option<Value> {
 }
 
 pub fn accepts(name: &str, args: &Value) -> bool {
+    if super::floating::is_action(name) {
+        return super::floating::accepts(name, args);
+    }
     let Some(object) = args.as_object() else {
         return args.is_null()
             && !matches!(name, "pane.resize" | "pane.move" | "client.mode.enter");
@@ -170,6 +179,10 @@ pub fn accepts(name: &str, args: &Value) -> bool {
 }
 
 pub fn run(s: &mut Workspace, name: &str, args: &Value, tx: &mut Tx) {
+    if super::floating::is_action(name) {
+        super::floating::run(s, name, args);
+        return;
+    }
     if args["when"] == "searching" && s.active_terminal().is_none_or(|t| t.search.is_none()) {
         return;
     }

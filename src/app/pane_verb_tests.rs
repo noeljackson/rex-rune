@@ -184,6 +184,8 @@ fn the_pane_menu_lists_the_verbs_in_groups_and_marks_what_cannot_run() {
             ("Split down", 1),
             ("Split up", 1),
             ("Zoom pane", 1),
+            ("Float or dock pane", 1),
+            ("Minimize floating pane", 1),
             ("Rename pane…", 2),
             ("Copy pane ID", 2),
             ("Clear terminal", 3),

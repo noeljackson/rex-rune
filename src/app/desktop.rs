@@ -22,8 +22,21 @@ use std::{
     time::Instant,
 };
 
-type NoteKey = (String, String, Option<String>, String, String);
-type Foreground = (u64, String, Option<String>, Option<String>);
+type NoteKey = (
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    String,
+    String,
+);
+struct Foreground {
+    id: u64,
+    endpoint: String,
+    session: Option<String>,
+    window: Option<String>,
+    blocks: std::collections::HashSet<String>,
+}
 
 pub struct Desktop {
     pub settings: Settings,
@@ -149,7 +162,7 @@ pub fn closed(s: &mut Workspace, _: &mut Tx) {
         d.status.store(0, Ordering::Release);
         let mut shared = d.shared.lock().expect("desktop");
         shared.windows.remove(&d.id);
-        if shared.foreground.as_ref().is_some_and(|f| f.0 == d.id) {
+        if shared.foreground.as_ref().is_some_and(|f| f.id == d.id) {
             shared.foreground = None;
         }
     }
@@ -234,13 +247,24 @@ impl Workspace {
         };
         let mut shared = d.shared.lock().expect("desktop");
         if self.window_focused {
-            shared.foreground = Some((
-                d.id,
-                self.settings.hosts[self.active].endpoint.clone(),
-                self.model().selected.clone(),
-                self.model().window().and_then(|w| w.window_id.clone()),
-            ));
-        } else if shared.foreground.as_ref().is_some_and(|f| f.0 == d.id) {
+            shared.foreground = Some(Foreground {
+                id: d.id,
+                endpoint: self.settings.hosts[self.active].endpoint.clone(),
+                session: self.model().selected.clone(),
+                window: self.model().window().and_then(|w| w.window_id.clone()),
+                blocks: self
+                    .model()
+                    .window()
+                    .map(|w| {
+                        rex_linux::layout::placements(w, None)
+                            .0
+                            .into_iter()
+                            .map(|p| p.block)
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+            });
+        } else if shared.foreground.as_ref().is_some_and(|f| f.id == d.id) {
             shared.foreground = None;
         }
     }
@@ -254,8 +278,14 @@ impl Workspace {
         };
         let endpoint = &self.settings.hosts[host].endpoint;
         let mut shared = d.shared.lock().expect("desktop");
-        if shared.foreground.as_ref().is_some_and(|(_, e, s, w)| {
-            e == endpoint && s.as_ref() == Some(&note.target.session) && w == &note.target.window
+        if shared.foreground.as_ref().is_some_and(|f| {
+            f.endpoint == *endpoint
+                && f.session.as_ref() == Some(&note.target.session)
+                && f.window == note.target.window
+                && note
+                    .source_block
+                    .as_ref()
+                    .is_none_or(|block| f.blocks.contains(block))
         }) {
             return false;
         }
@@ -263,6 +293,7 @@ impl Workspace {
             endpoint.clone(),
             note.target.session.clone(),
             note.target.window.clone(),
+            note.source_block.clone(),
             note.summary.clone(),
             note.body.clone(),
         );
@@ -794,6 +825,7 @@ mod tests {
         let (mut second, _) = fixture();
         second.desktop = Some(WindowState::new(shared.clone(), 2));
         let note = super::super::notify::Note {
+            source_block: None,
             summary: "Done".into(),
             body: "fixture".into(),
             target: super::super::notify::NoteTarget {
@@ -808,12 +840,13 @@ mod tests {
             first.allow_desktop_note(&note),
             "distinct repeats from the same source are still delivered"
         );
-        shared.lock().unwrap().foreground = Some((
-            2,
-            first.settings.hosts[0].endpoint.clone(),
-            Some("s".into()),
-            Some("tab".into()),
-        ));
+        shared.lock().unwrap().foreground = Some(Foreground {
+            id: 2,
+            endpoint: first.settings.hosts[0].endpoint.clone(),
+            session: Some("s".into()),
+            window: Some("tab".into()),
+            blocks: Default::default(),
+        });
         assert!(!first.allow_desktop_note(&note));
         assert!(!second.allow_desktop_note(&note));
     }

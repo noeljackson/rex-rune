@@ -995,7 +995,12 @@ fn reconcile(
     if model.visible
         && let (Some(session_id), Some(window)) = (&model.selected, model.window())
     {
-        for block in window.layers.iter().flat_map(|l| &l.blocks) {
+        for block in window
+            .layers
+            .iter()
+            .filter(|l| l.state.as_deref() != Some("minimized"))
+            .flat_map(|l| &l.blocks)
+        {
             let Some(id) = &block.block_id else {
                 continue;
             };

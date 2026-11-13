@@ -506,10 +506,10 @@
     },
     {
       "name": "pane.float",
-      "status": "missing",
-      "registered": false,
-      "remote": "denied",
-      "notes": "Not registered in this Linux baseline."
+      "status": "partial",
+      "registered": true,
+      "remote": "workspace",
+      "notes": "Float/dock preserves the existing program; API 12 requires a remaining tiled docking anchor."
     },
     {
       "name": "pane.focus",
@@ -587,17 +587,17 @@
     },
     {
       "name": "pane.minimize_all_floating",
-      "status": "missing",
-      "registered": false,
-      "remote": "denied",
-      "notes": "Not registered in this Linux baseline."
+      "status": "supported",
+      "registered": true,
+      "remote": "workspace",
+      "notes": "Toggle all floating layers; hiding all requires visible tiled content."
     },
     {
       "name": "pane.minimize_floating",
-      "status": "missing",
-      "registered": false,
-      "remote": "denied",
-      "notes": "Not registered in this Linux baseline."
+      "status": "supported",
+      "registered": true,
+      "remote": "workspace",
+      "notes": "Toggle minimizing the focused float or restoring the most recent minimized float."
     },
     {
       "name": "pane.move",
@@ -654,10 +654,10 @@
     },
     {
       "name": "pane.new_floating",
-      "status": "missing",
-      "registered": false,
-      "remote": "denied",
-      "notes": "Not registered in this Linux baseline."
+      "status": "supported",
+      "registered": true,
+      "remote": "workspace",
+      "notes": "Explicitly creates a new terminal in a server-owned floating layer."
     },
     {
       "name": "pane.paste",

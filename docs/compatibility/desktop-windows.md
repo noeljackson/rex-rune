@@ -22,7 +22,7 @@ the latest settings, and broadcast the result. Host consent changes invalidate
 queued operations in every window before publishing the update. Navigation and
 open dialogs remain window-local. Saved sidebar placement and last-visited host
 and sessions are defaults for future windows; changing these defaults does not
-move existing windows. Notification visibility follows the pinned view. Identical notifications observed by different windows within one second are delivered once; a tab visible in the foreground window stays quiet.
+move existing windows. Notification visibility follows the pinned view. Identical notifications observed by different windows within one second are delivered once; aggregate tab activity visible in the foreground window stays quiet. Program messages are suppressed only when their source pane is visible there, so minimized panes can still notify.
 
 Closing a desktop window disconnects its clients and preserves server sessions and
 programs. The last native window closing exits the process. Additional desktop

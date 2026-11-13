@@ -235,6 +235,8 @@ fn the_pane_menu_offers_four_sides_in_groups_and_commands_adds_best_fit_and_focu
             "Split down",
             "Split up",
             "Zoom pane",
+            "Float or dock pane",
+            "Minimize floating pane",
             "Rename pane…",
             "Copy pane ID",
             "Clear terminal",
