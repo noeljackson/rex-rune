@@ -222,8 +222,10 @@ impl<S: 'static> Host<S> {
             let report = Arc::new(move |covered| handle.send(move |slot| WakeEvent::Covered(slot, covered)));
             Native { cloak, frame, _occlusion: crate::platform::win32::occlusion::Tracked::new(&window, report) }
         };
-        #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+        #[cfg(not(any(target_os = "macos", target_os = "windows", all(unix, not(target_os = "ios"), not(target_os = "android")))))]
         let native = Native::default();
+        #[cfg(all(unix, not(target_os = "macos"), not(target_os = "ios"), not(target_os = "android")))]
+        let native = Native { activator: crate::platform::activation::Activator::new(&window) };
         self.win = Some(Win {
             a11y,
             native,

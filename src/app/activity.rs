@@ -240,6 +240,7 @@ impl Workspace {
     pub fn tab_seen(&self, index: usize, session: &str, window: &str) -> bool {
         let model = &self.hosts[index].model;
         self.window_focused
+            && !self.detached_here()
             && index == self.active
             && model.selected.as_deref() == Some(session)
             && model

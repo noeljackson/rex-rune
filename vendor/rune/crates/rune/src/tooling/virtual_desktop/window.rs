@@ -283,6 +283,7 @@ impl<S: 'static> Member for Window<S> {
                 WakeEvent::Place(_, place) => self.place(desktop, &place, t),
                 WakeEvent::Position(_, p) => self.move_to(desktop.to_points(p)),
                 WakeEvent::Focus(_) if self.life.shown() => { changes.front = true; changes.keys = true; }
+                WakeEvent::ActivateFrom(_, target) => target.focus(),
                 _ => {}
             }
         }

@@ -6,6 +6,8 @@
 
 ### Added
 
+- **Tab tear-off:** drag a toolbar tab into its own native desktop window, or use its menu/Commands action. The original tab shows Go to window and Restore to this window, including the last tab. Restore and native-window closure preserve the original programs and output; unrelated work in the destination stays open. Wayland Go uses a local input activation token. Go/Restore are bindable local-only actions.
+
 - **Floating panes:** float/dock existing programs, explicitly create floating terminals, move/resize/raise/lower, and minimize/restore one or all layers. Headers provide drag, Dock and Minimize controls; corner handles resize and bottom capsules restore. Bindable actions accept Workspace remote control and acknowledge server results. Geometry, block IDs and minimized state remain server-owned across reconnects and view closure. API 12 requires an existing tiled docking anchor.
 
 - **Workspace remote control:** a separate per-host opt-in for CLI creation and pane management, preserving old view-only consent. Forms and destructive confirmations stay local and expire with the request; queued commands lose their grant on consent or endpoint changes. Server-backed remote actions reply after acknowledgement and refreshed UI state, with failures never replayed. A private CLI acceptance script covers creation, layout changes, confirmation, cancellation and expiry.

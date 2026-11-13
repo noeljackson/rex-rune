@@ -137,6 +137,13 @@ impl WindowHandle {
     pub fn hide(&self) { self.set_visible(false); }
     /// Focus/activate an already-visible window, restoring it if minimized. Wayland requests attention.
     pub fn focus(&self) { self.send(WakeEvent::Focus); }
+    /// Activate this window from a user interaction in `source`. Wayland obtains a fresh
+    /// activation token from the source surface; other platforms use normal activation.
+    /// The compositor retains the final focus decision. Requests never recreate a closed target.
+    pub fn focus_from(&self, source: &WindowHandle) {
+        let target = self.clone();
+        source.send(move |slot| WakeEvent::ActivateFrom(slot, target));
+    }
     /// Show, restore and activate, creating the window if needed (see `AppHandle::open`).
     /// A default close destroys its host; use App::keep_running to reopen.
     /// Windows added with `App::window` always reopen. Requests made before the loop runs

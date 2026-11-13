@@ -57,6 +57,8 @@ pub fn title(name: &str) -> &'static str {
         "client.window.close" => "Close desktop window",
         "client.window.fullscreen.toggle" => "Toggle fullscreen",
         "client.tab.move_to_new_window" => "Move tab to new desktop window",
+        "client.tab.go_to_window" => "Go to tab window",
+        "client.tab.restore_to_window" => "Restore tab to this window",
 
         "client.config.reload" => "Reload config",
         "client.config.copy_path" => "Copy config file path",
@@ -197,6 +199,8 @@ pub fn run(s: &mut Workspace, name: &str, args: &Value, tx: &mut Tx) {
     match name {
         "client.window.new" => s.open_desktop(false, None, tx),
         "client.tab.move_to_new_window" => s.open_desktop(true, None, tx),
+        "client.tab.go_to_window" => s.go_to_detached(tx),
+        "client.tab.restore_to_window" => s.restore_detached(tx),
         "client.window.close" => tx.close_window(),
         "client.window.fullscreen.toggle" => tx.toggle_full_screen(),
         "client.config.reload" => {

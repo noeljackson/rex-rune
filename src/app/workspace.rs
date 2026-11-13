@@ -79,6 +79,7 @@ pub struct Workspace {
     next_notice: u64,
     zoom_notice: Option<u64>,
     pub drag: Option<DividerDrag>,
+    pub(super) tab_drag: Option<super::desktop::TabDrag>,
     pub(super) floating_drag: Option<super::floating::DragState>,
     /// Keys whose press went to a terminal; only their releases follow.
     pub forwarded: HashSet<super::bindings::Identity>,
@@ -259,6 +260,7 @@ impl Workspace {
             next_notice: 0,
             zoom_notice: None,
             drag: None,
+            tab_drag: None,
             floating_drag: None,
             forwarded: HashSet::new(),
             bindings: Default::default(),
@@ -578,6 +580,7 @@ impl Workspace {
             );
         }
         self.hosts[index].model = model;
+        self.refresh_detached_visibility();
         self.announce_keymap_problems(index);
         // Resolve navigation bookkeeping before replying, so a following CLI command
         // does not see a completed visit as still pending.
@@ -665,7 +668,7 @@ impl Workspace {
     /// do: once per pane while this window has focus, and again each time it comes forward.
     /// Another client taking a pane back is left alone until then (or until input here).
     pub fn claim_visible(&mut self) {
-        if !self.window_focused {
+        if !self.window_focused || self.detached_here() {
             return;
         }
         let model = &self.hosts[self.active].model;
@@ -997,6 +1000,9 @@ impl Workspace {
     }
 
     pub fn focused_block(&self) -> Option<String> {
+        if self.detached_here() {
+            return None;
+        }
         let block = self.model().focused()?;
         self.model()
             .window()
@@ -1010,6 +1016,9 @@ impl Workspace {
     }
 
     pub(super) fn visible_terminal_keys(&self) -> HashSet<(HostId, String)> {
+        if self.detached_here() {
+            return HashSet::new();
+        }
         self.model()
             .window()
             .map(|w| {
@@ -1293,7 +1302,10 @@ impl Workspace {
             term.end_selection();
         }
         for index in 0..self.hosts.len() {
-            self.send(index, HostCommand::Visibility(index == self.active));
+            self.send(
+                index,
+                HostCommand::Visibility(index == self.active && !self.detached_here()),
+            );
         }
     }
 
@@ -1714,7 +1726,7 @@ impl Workspace {
     }
 
     fn pane_action(&mut self, target: PaneTarget, action: PaneAction, tx: &mut Tx) {
-        if !self.target_exists(&target) {
+        if !self.target_exists(&target) || self.pane_in_detached_window(&target) {
             self.close_panel(tx);
             self.inform("That pane is no longer available.");
             return;

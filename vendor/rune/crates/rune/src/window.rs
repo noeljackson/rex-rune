@@ -104,6 +104,7 @@ mod backoff_tests;
 pub(crate) enum WakeEvent {
     DisplayTick(usize),
     App(usize), Live(usize), Window(usize, WindowRequest), Focus(usize),
+    ActivateFrom(usize, WindowHandle),
     Position(usize, (i32, i32)), Level(usize, bool),
     Place(usize, crate::windows::PlaceRequest),
     Frame(usize, crate::window::frame::FrameRequest),
@@ -327,7 +328,7 @@ impl ApplicationHandler<WakeEvent> for Windows {
     fn user_event(&mut self, event_loop: &ActiveEventLoop, event: WakeEvent) {
         let _handling = crate::quit::handling();
         let slot = match &event {
-            WakeEvent::DisplayTick(i) | WakeEvent::App(i) | WakeEvent::Live(i) | WakeEvent::Window(i, _) | WakeEvent::Focus(i)
+            WakeEvent::DisplayTick(i) | WakeEvent::App(i) | WakeEvent::Live(i) | WakeEvent::Window(i, _) | WakeEvent::Focus(i) | WakeEvent::ActivateFrom(i, _)
                 | WakeEvent::Position(i, _) | WakeEvent::Level(i, _) | WakeEvent::Place(i, _) | WakeEvent::Frame(i, _)
                 | WakeEvent::A11y(i) | WakeEvent::Covered(i, _) => *i,
             WakeEvent::Reopen => {

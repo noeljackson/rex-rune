@@ -1,5 +1,15 @@
 use super::*;
 
+#[test]
+fn activation_transfer_is_requested_from_the_source_for_the_exact_target() {
+    let source = WindowHandle::new("source");
+    let target = WindowHandle::new("target");
+    target.focus_from(&source);
+    assert!(!target.headless_pending());
+    let events = source.take_headless();
+    assert!(matches!(&events[..], [WakeEvent::ActivateFrom(0, window)] if window.key() == "target"));
+}
+
 /// Before a host binds it, a handle keeps its requests in order; a headless run takes them
 /// each turn and the handle goes on keeping later ones.
 #[test]

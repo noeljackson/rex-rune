@@ -69,7 +69,7 @@ Imported upstream commits 99dc9db and c982398 (PR 57) provide local compatibilit
 | `client.tab.move` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `client.tab.move.backward` | alias | `client.tab.move` | workspace |
 | `client.tab.move.forward` | alias | `client.tab.move` | workspace |
-| `client.tab.move_to_new_window` | partial | Independently targeted desktop view; server programs keep running on close. | workspace |
+| `client.tab.move_to_new_window` | supported | Native tear-off with a source Go/Restore placeholder; same server programs survive restoration and view closure. | workspace |
 | `client.tab.new` | supported | Registered local action; remote availability is a separate permission. | workspace |
 | `client.tab.next` | supported | Registered local action; remote availability is a separate permission. | view |
 | `client.tab.previous` | supported | Registered local action; remote availability is a separate permission. | view |

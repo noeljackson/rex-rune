@@ -142,6 +142,26 @@ impl<S: 'static> Host<S> {
                 self.shell(event_loop);
             }
             WakeEvent::Focus(_) => self.focus(event_loop),
+            WakeEvent::ActivateFrom(_, target) => {
+                if target.window().is_err() { return; }
+                #[cfg(all(unix, not(target_os = "macos"), not(target_os = "ios"), not(target_os = "android")))]
+                if is_wayland(event_loop) {
+                    if self.life.shown() && let Some(source) = self.win.as_mut()
+                        && source.window.has_focus() && let Some(a) = source.native.activator.as_mut()
+                    {
+                        let destination = target.clone();
+                        a.request(Box::new(move |token| {
+                            if destination.window().is_ok() {
+                                destination.send(move |slot| WakeEvent::Window(slot, WindowRequest::Open(Some(token))));
+                            }
+                        }));
+                    }
+                    // The compositor decides whether to grant activation. Never fabricate an
+                    // input serial, or fall back to an unfocused source's token.
+                    return;
+                }
+                target.open();
+            }
             WakeEvent::Position(_, position) => self.set_position(event_loop, position),
             WakeEvent::Place(_, place) => self.place(event_loop, place),
             WakeEvent::Level(_, on) => self.set_always_on_top(event_loop, on),

@@ -324,10 +324,10 @@
     },
     {
       "name": "client.tab.move_to_new_window",
-      "status": "partial",
+      "status": "supported",
       "registered": true,
       "remote": "workspace",
-      "notes": "Independent desktop view; target its runtime client label. Closing preserves server programs; moving the last tab keeps a second view."
+      "notes": "Native tear-off; source Go/Restore placeholder, including the last tab. Restoration and view closure preserve the same server programs."
     },
     {
       "name": "client.tab.new",
@@ -453,21 +453,21 @@
       "status": "supported",
       "registered": true,
       "remote": "workspace",
-      "notes": "Independent desktop view; target its runtime client label. Closing preserves server programs; moving the last tab keeps a second view."
+      "notes": "Independent desktop view; target its runtime client label. Closing preserves server programs."
     },
     {
       "name": "client.window.fullscreen.toggle",
       "status": "supported",
       "registered": true,
       "remote": "workspace",
-      "notes": "Independent desktop view; target its runtime client label. Closing preserves server programs; moving the last tab keeps a second view."
+      "notes": "Independent desktop view; target its runtime client label. Closing preserves server programs."
     },
     {
       "name": "client.window.new",
       "status": "supported",
       "registered": true,
       "remote": "workspace",
-      "notes": "Independent desktop view; target its runtime client label. Closing preserves server programs; moving the last tab keeps a second view."
+      "notes": "Independent desktop view; target its runtime client label. Closing preserves server programs."
     },
     {
       "name": "pane.balance",

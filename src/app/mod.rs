@@ -81,7 +81,8 @@ pub(crate) fn view(s: &Workspace, cx: &mut Cx<Workspace>) -> El {
             .child(sidebar::sidebar_edge(s));
     }
     // Device pixels per point, so terminal box drawing lands on whole pixels.
-    body = body.child(panes::area(s, cx.env().scale * scale));
+    body = body
+        .child(desktop::placeholder(s).unwrap_or_else(|| panes::area(s, cx.env().scale * scale)));
     let mut root = el()
         .key("root")
         .absolute(0., 0.)
@@ -111,7 +112,11 @@ pub(crate) fn view(s: &Workspace, cx: &mut Cx<Workspace>) -> El {
         .key("window")
         .pointer_buttons([rune::PointerButton::Back, rune::PointerButton::Forward])
         .on_press_tx(|s: &mut Workspace, tx: &mut Tx| {
-            if s.panel.is_some() || s.drag.is_some() || s.floating_drag.is_some() {
+            if s.panel.is_some()
+                || s.drag.is_some()
+                || s.floating_drag.is_some()
+                || s.tab_drag.is_some()
+            {
                 return;
             }
             let action = match tx.button() {

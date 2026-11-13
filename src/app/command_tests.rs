@@ -113,6 +113,8 @@ const IDS: &[&str] = &[
     "app.window_new",
     "app.fullscreen",
     "app.detach_tab",
+    "app.go_to_tab_window",
+    "app.restore_tab_here",
     "app.about",
     "app.help",
     "app.report_issue",
