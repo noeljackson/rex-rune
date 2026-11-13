@@ -33,7 +33,10 @@ fn issue_44_schemas_accept_examples_and_reject_invalid_args_before_dispatch() {
     ] {
         let spec = actions::find(name).unwrap();
         assert!(spec.accepts(&args), "{name}: {args}");
-        assert!(matches!(spec.remote(), actions::Remote::Never(_)));
+        assert!(matches!(
+            spec.remote(),
+            actions::Remote::Never(_) | actions::Remote::Workspace
+        ));
     }
     for (name, args) in [
         ("pane.resize", Value::Null),
@@ -69,7 +72,7 @@ fn issue_44_schemas_accept_examples_and_reject_invalid_args_before_dispatch() {
 }
 
 #[test]
-fn every_added_name_is_remote_denied_including_aliases_of_allowed_actions() {
+fn every_added_name_needs_workspace_consent_or_remains_local() {
     let names = [
         "client.config.reload",
         "client.config.copy_path",
@@ -114,7 +117,7 @@ fn every_added_name_is_remote_denied_including_aliases_of_allowed_actions() {
         assert!(
             matches!(
                 actions::find(name).unwrap().remote(),
-                actions::Remote::Never(_)
+                actions::Remote::Never(_) | actions::Remote::Workspace
             ),
             "{name}"
         );
@@ -126,7 +129,17 @@ fn every_added_name_is_remote_denied_including_aliases_of_allowed_actions() {
             super::remote_tests::pending(name, Value::Null),
             &mut rune::Tx::default(),
         );
-        super::remote_tests::code(super::remote_tests::reply(&rx), "not_supported");
+        super::remote_tests::code(
+            super::remote_tests::reply(&rx),
+            if matches!(
+                actions::find(name).unwrap().remote(),
+                actions::Remote::Workspace
+            ) {
+                "refused"
+            } else {
+                "not_supported"
+            },
+        );
         assert!(ws.panel.is_none());
     }
 }

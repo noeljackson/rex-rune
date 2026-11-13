@@ -208,6 +208,8 @@ pub struct HostModel {
     pub selected: Option<String>,
     /// Completion of the latest client navigation request (id, success), not a notice.
     pub navigation_result: Option<(u64, bool)>,
+    /// A correlated remote workspace operation, consumed only by its originating UI.
+    pub remote_result: Option<(u64, perform::Outcome)>,
     pub views: HashMap<String, session::ViewResponse>,
     pub terminals: HashMap<String, Connection>,
     /// Each terminal block's OSC 7501 records, by record id (empty for the root record).
@@ -374,6 +376,15 @@ impl HostModel {
 }
 
 pub enum HostCommand {
+    /// Commands captured from the ordinary UI handlers, executed once on this epoch.
+    PerformBatch {
+        consent: Arc<std::sync::atomic::AtomicU64>,
+        generation: u64,
+        id: u64,
+        epoch: u64,
+        deadline: Instant,
+        commands: Vec<HostCommand>,
+    },
     PerformReply {
         epoch: u64,
         call_id: String,
@@ -1366,6 +1377,7 @@ async fn run_host(
             let wanted = preferred.clone().or_else(|| shared.model.lock().expect("host model").selected.clone());
             shared.update(|m| {
                 m.connection_epoch += 1;
+                m.remote_result = None;
                 m.performs.clear();
                 m.client_id = identity.id.clone();
                 m.protocol.api_revision = control.welcome().api_revision;
@@ -1542,7 +1554,9 @@ async fn run_host(
                             });
                             continue;
                         }
-                        if matches!(command, HostCommand::Select(_) | HostCommand::Navigate { .. } | HostCommand::CreateSession { .. }) { preferred = None; }
+                        if matches!(command, HostCommand::Select(_) | HostCommand::Navigate { .. } | HostCommand::CreateSession { .. })
+                            || matches!(&command, HostCommand::PerformBatch { commands, .. } if commands.iter().any(|command| matches!(command, HostCommand::Navigate { .. } | HostCommand::CreateSession { .. })))
+                        { preferred = None; }
                         let navigation = match &command { HostCommand::Navigate { id, .. } => Some(*id), _ => None };
                         let outcome = handle_command(command, &mut control, shared, &mut workers, &mut state, &mut theme).await;
                         if let Some(id) = navigation {
@@ -1760,6 +1774,128 @@ async fn handle_command(
     theme: &mut Option<SetTheme>,
 ) -> Result<()> {
     match command {
+        HostCommand::PerformBatch {
+            consent,
+            generation,
+            id,
+            epoch,
+            deadline,
+            commands,
+        } => {
+            if shared.model.lock().expect("host model").connection_epoch != epoch {
+                return Ok(());
+            }
+            let valid = !commands.is_empty()
+                && commands.len() <= 1024
+                && commands.iter().all(|command| {
+                    matches!(
+                        command,
+                        HostCommand::Request { .. }
+                            | HostCommand::NewTerminal { .. }
+                            | HostCommand::CreateSession { .. }
+                            | HostCommand::Navigate { .. }
+                    )
+                });
+            let mut outcome = if valid {
+                perform::Outcome::Performed
+            } else {
+                perform::Outcome::error(
+                    "internal",
+                    "Invalid workspace operation; nothing was dispatched.",
+                )
+            };
+            let mut failure = None;
+            if valid {
+                for mut command in commands {
+                    if consent.load(std::sync::atomic::Ordering::Acquire) != generation {
+                        outcome = perform::Outcome::error(
+                            "refused",
+                            "Workspace consent changed before dispatch; no further steps were sent.",
+                        );
+                        break;
+                    }
+                    if Instant::now() >= deadline {
+                        outcome = perform::Outcome::error(
+                            "timeout",
+                            "Workspace operation expired; earlier completed steps may have taken effect. Nothing will be retried.",
+                        );
+                        break;
+                    }
+                    // Directory inheritance is a read that can take time. Check the grant
+                    // and original deadline again before the resulting creation is sent.
+                    if let HostCommand::NewTerminal {
+                        method,
+                        mut payload,
+                        cwd_from,
+                    } = command
+                    {
+                        let session = payload["session_id"]
+                            .as_str()
+                            .unwrap_or_default()
+                            .to_owned();
+                        if let Some(dir) = shell_dir_of(control, &session, &cwd_from).await {
+                            crate::layout::with_cwd(&mut payload["layout"], &dir);
+                        }
+                        command = HostCommand::Request { method, payload };
+                        if Instant::now() >= deadline
+                            || consent.load(std::sync::atomic::Ordering::Acquire) != generation
+                        {
+                            outcome = perform::Outcome::error(
+                                "refused",
+                                "Creation expired or lost consent during directory lookup; no creation was sent.",
+                            );
+                            break;
+                        }
+                    }
+                    if let HostCommand::Navigate {
+                        deadline: navigation_deadline,
+                        ..
+                    } = &mut command
+                    {
+                        *navigation_deadline = (*navigation_deadline).min(deadline);
+                    }
+                    let navigation = match &command {
+                        HostCommand::Navigate { id, .. } => Some(*id),
+                        _ => None,
+                    };
+                    let result = Box::pin(handle_command(
+                        command, control, shared, workers, state, theme,
+                    ))
+                    .await;
+                    if let Some(id) = navigation {
+                        shared.update(|model| model.navigation_result = Some((id, result.is_ok())));
+                    }
+                    if let Err(error) = result {
+                        let code = match error.downcast_ref::<rexrs::Error>() {
+                            Some(rexrs::Error::Api(
+                                rexrs::ApiError::NotFound { .. }
+                                | rexrs::ApiError::SessionNotFound { .. },
+                            )) => "not_found",
+                            Some(rexrs::Error::Api(rexrs::ApiError::MethodNotFound { .. })) => {
+                                "not_supported"
+                            }
+                            Some(rexrs::Error::Api(rexrs::ApiError::BadRequest { .. })) => {
+                                "bad_request"
+                            }
+                            Some(rexrs::Error::Api(rexrs::ApiError::Conflict { .. })) => "conflict",
+                            _ => "internal",
+                        };
+                        outcome = perform::Outcome::error(
+                            code,
+                            format!(
+                                "Workspace operation failed: {error:#}. Its result may be uncertain; nothing will be retried."
+                            ),
+                        );
+                        failure = Some(error);
+                        break;
+                    }
+                }
+            }
+            shared.update(|model| model.remote_result = Some((id, outcome)));
+            if let Some(error) = failure {
+                return Err(error);
+            }
+        }
         HostCommand::Action {
             generation,
             request,
@@ -1798,12 +1934,19 @@ async fn handle_command(
             });
         }
         HostCommand::Navigate {
-            session, window, ..
+            session,
+            window,
+            deadline,
+            ..
         } => {
             let selected = shared.model.lock().expect("host model").selected.clone();
             if selected.as_ref() != Some(&session) {
                 attach(control, shared, state, &session).await?;
             }
+            anyhow::ensure!(
+                Instant::now() < deadline,
+                "Navigation expired before focusing; nothing will be retried"
+            );
             if let Some(window) = window {
                 request(
                     control,

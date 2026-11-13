@@ -442,8 +442,9 @@ pub fn select_row(
     detail: &str,
     options: &[&str],
     current: usize,
-    apply: fn(&mut Workspace, usize, &mut Tx),
+    apply: impl Fn(&mut Workspace, usize, &mut Tx) + Send + Sync + 'static,
 ) -> El {
+    let apply: super::panel::ChoiceApply = std::sync::Arc::new(apply);
     let (control, title) = (key.to_owned(), label.to_owned());
     let list: Vec<String> = options.iter().map(|o| (*o).to_owned()).collect();
     let press = move |s: &mut Workspace, _: &mut Tx| {
@@ -453,7 +454,7 @@ pub fn select_row(
             Choice {
                 options: list.clone(),
                 current: Some(current),
-                apply,
+                apply: apply.clone(),
             },
         )
     };

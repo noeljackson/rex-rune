@@ -13,6 +13,8 @@ mod perform_tests;
 mod server_info_tests;
 #[path = "verb_tests.rs"]
 mod verb_tests;
+#[path = "workspace_tests.rs"]
+mod workspace_tests;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_tungstenite::{WebSocketStream, tungstenite::Message};

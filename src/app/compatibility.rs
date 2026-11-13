@@ -1,5 +1,5 @@
-//! Local-only spellings from Rex's action reference. Aliases reuse the original handlers;
-//! declaring one here must never enlarge the remote allowed set.
+//! Spellings from Rex's action reference. Aliases reuse the original handlers;
+//! remote permission is declared separately and exhaustively in `Spec::remote`.
 use super::{
     actions,
     panel::{Intent, PaneAction, PanelKind},

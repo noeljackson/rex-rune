@@ -20,7 +20,7 @@
       "name": "client.close",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
@@ -282,14 +282,14 @@
       "name": "client.tab.close",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
       "name": "client.tab.close_others",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
@@ -303,14 +303,14 @@
       "name": "client.tab.move",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
       "name": "client.tab.move.backward",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "client.tab.move"
     },
@@ -318,7 +318,7 @@
       "name": "client.tab.move.forward",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "client.tab.move"
     },
@@ -333,7 +333,7 @@
       "name": "client.tab.new",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
@@ -354,7 +354,7 @@
       "name": "client.tab.rename",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
@@ -473,21 +473,21 @@
       "name": "pane.balance",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
       "name": "pane.close",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
       "name": "pane.close_others",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
@@ -522,7 +522,7 @@
       "name": "pane.focus.down",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.focus"
     },
@@ -530,7 +530,7 @@
       "name": "pane.focus.left",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.focus"
     },
@@ -538,7 +538,7 @@
       "name": "pane.focus.right",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.focus"
     },
@@ -546,7 +546,7 @@
       "name": "pane.focus.up",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.focus"
     },
@@ -554,14 +554,14 @@
       "name": "pane.focus_next",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
       "name": "pane.focus_previous",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
@@ -603,14 +603,14 @@
       "name": "pane.move",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
       "name": "pane.move.down",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.move"
     },
@@ -618,7 +618,7 @@
       "name": "pane.move.left",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.move"
     },
@@ -626,7 +626,7 @@
       "name": "pane.move.right",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.move"
     },
@@ -634,7 +634,7 @@
       "name": "pane.move.up",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.move"
     },
@@ -649,7 +649,7 @@
       "name": "pane.move_to_tab",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
@@ -670,14 +670,14 @@
       "name": "pane.rename",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
       "name": "pane.resize",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
@@ -698,14 +698,14 @@
       "name": "pane.split",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
       "name": "pane.split.auto",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.split"
     },
@@ -713,7 +713,7 @@
       "name": "pane.split.down",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.split"
     },
@@ -721,7 +721,7 @@
       "name": "pane.split.left",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.split"
     },
@@ -729,7 +729,7 @@
       "name": "pane.split.right",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.split"
     },
@@ -737,7 +737,7 @@
       "name": "pane.split.up",
       "status": "alias",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Uses the existing handler; no additional Commands row.",
       "target": "pane.split"
     },
@@ -759,7 +759,7 @@
       "name": "session.close",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
@@ -787,14 +787,14 @@
       "name": "session.new",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
       "name": "session.next",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
@@ -808,7 +808,7 @@
       "name": "session.previous",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {
@@ -822,7 +822,7 @@
       "name": "session.rename",
       "status": "supported",
       "registered": true,
-      "remote": "denied",
+      "remote": "workspace",
       "notes": "Registered local action; remote availability is a separate permission."
     },
     {

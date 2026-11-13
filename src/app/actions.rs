@@ -192,7 +192,11 @@ pub fn find(name: &str) -> Option<&'static Spec> {
 /// Exhaustive by handler: new actions require an explicit remote decision.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Remote {
-    View { navigation: bool },
+    View {
+        navigation: bool,
+    },
+    /// Requires a separate saved-host opt-in; it never inherits old view-only consent.
+    Workspace,
     Never(&'static str),
 }
 
@@ -200,9 +204,30 @@ impl Spec {
     pub fn remote(&self) -> Remote {
         use Handler::*;
         match self.handler {
-            Compatibility => Remote::Never(
-                "Compatibility actions are available only to the person at this computer.",
-            ),
+            Compatibility => match self.name {
+                "pane.resize"
+                | "pane.balance"
+                | "pane.rename"
+                | "pane.close_others"
+                | "pane.move"
+                | "pane.move.left"
+                | "pane.move.right"
+                | "pane.move.up"
+                | "pane.move.down"
+                | "pane.move_to_tab"
+                | "pane.focus.left"
+                | "pane.focus.right"
+                | "pane.focus.up"
+                | "pane.focus.down"
+                | "pane.split.left"
+                | "pane.split.right"
+                | "pane.split.up"
+                | "pane.split.down"
+                | "pane.split.auto"
+                | "client.tab.move.backward"
+                | "client.tab.move.forward" => Remote::Workspace,
+                _ => Remote::Never("This action is available only to the person at this computer."),
+            },
             NextTab | PreviousTab | GotoTab | FocusPane | SelectSession => {
                 Remote::View { navigation: true }
             }
@@ -214,17 +239,17 @@ impl Spec {
                 "Use rex capture instead; remote actions cannot change this computer's clipboard.",
             ),
             SendKey => Remote::Never("Use rex send-key instead."),
-            NewSession => Remote::Never("Use rex new instead."),
-            NewTab => Remote::Never("Use rex window new instead."),
-            Split => Remote::Never("Use rex split instead."),
-            Close | ClosePane => Remote::Never("Use rex block close instead."),
-            CloseTab | CloseOtherTabs => Remote::Never("Use rex window close instead."),
-            MoveTab => Remote::Never("Use rex window move instead."),
+            NewSession => Remote::Workspace,
+            NewTab => Remote::Workspace,
+            Split => Remote::Workspace,
+            Close | ClosePane => Remote::Workspace,
+            CloseTab | CloseOtherTabs => Remote::Workspace,
+            MoveTab => Remote::Workspace,
             MuteTab => Remote::Never(
                 "Only the person at this computer can mute this client's notifications.",
             ),
-            RenameTab => Remote::Never("Use rex window rename instead."),
-            RenameSession => Remote::Never("Use rex session rename instead."),
+            RenameTab => Remote::Workspace,
+            RenameSession => Remote::Workspace,
             Palette | Settings | Search | SwitchSession | PaneActions => {
                 Remote::Never("Only the person at this computer can open dialogs and popups.")
             }
@@ -248,19 +273,15 @@ impl Spec {
             FindNext | FindPrevious => {
                 Remote::Never("Only the person at this computer can search a terminal.")
             }
-            FocusNextPane | FocusPreviousPane => {
-                Remote::Never("Use pane.focus with a direction instead.")
-            }
+            FocusNextPane | FocusPreviousPane => Remote::Workspace,
             FontIncrease | FontDecrease | FontReset => Remote::Never(
                 "Only the person at this computer can change saved terminal preferences.",
             ),
             Help | ReportIssue => {
                 Remote::Never("Only the person at this computer can open its browser.")
             }
-            CloseSession => Remote::Never("Use rex session kill instead."),
-            NextSession | PreviousSession => {
-                Remote::Never("Use rex do session.select on the target host instead.")
-            }
+            CloseSession => Remote::Workspace,
+            NextSession | PreviousSession => Remote::Workspace,
             RefreshSessions => Remote::Never("Use rex session ls instead."),
             CollapseOtherHosts => Remote::Never(
                 "Only the person at this computer can change saved interface preferences.",
@@ -805,6 +826,9 @@ pub fn declarations() -> Vec<rexrs::api::client::InspectResponseAction> {
                 .keywords(s.title())
                 .repeats(s.repeats());
             action.args = s.schema();
+            if matches!(s.remote(), Remote::Workspace) {
+                action.description = Some("Requires Workspace remote control for this host; closing still asks for confirmation.".into());
+            }
             if let Remote::Never(message) = s.remote() {
                 action.description = Some(format!(
                     "{}Not available remotely. {message}",
