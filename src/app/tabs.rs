@@ -103,7 +103,7 @@ impl Workspace {
     /// it moves.
     pub fn active_tab_place(&self) -> Option<(String, usize)> {
         let view = self.model().view()?;
-        let id = view.active_window_id.clone()?;
+        let id = self.model().window()?.window_id.clone()?;
         let place = view
             .windows
             .iter()

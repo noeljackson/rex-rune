@@ -484,10 +484,10 @@ fn hosts(s: &Workspace) -> El {
             [card([disclosure(
                 "client-label",
                 "Client label",
-                "Its name on every host. Takes effect when you reopen the app.",
+                "Base name for this app. Takes effect when you reopen the app.",
                 &s.settings.client_label(),
                 |s, tx| s.perform(Intent::ClientLabel, tx),
-            )])],
+            )]), footnote(s.desktop.as_ref().map_or_else(|| format!("CLI target: {}", s.settings.client_label()), |d| format!("This window's CLI target: {}", d.label)))],
         ),
         section(
             "Hosts",

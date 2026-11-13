@@ -50,6 +50,11 @@ pub fn alias(name: &str) -> Option<(&'static str, Value)> {
 
 pub fn title(name: &str) -> &'static str {
     match name {
+        "client.window.new" => "New desktop window",
+        "client.window.close" => "Close desktop window",
+        "client.window.fullscreen.toggle" => "Toggle fullscreen",
+        "client.tab.move_to_new_window" => "Move tab to new desktop window",
+
         "client.config.reload" => "Reload config",
         "client.config.copy_path" => "Copy config file path",
         "client.prompt.previous" => "Previous prompt (not supported)",
@@ -177,6 +182,10 @@ pub fn run(s: &mut Workspace, name: &str, args: &Value, tx: &mut Tx) {
         return;
     }
     match name {
+        "client.window.new" => s.open_desktop(false, None, tx),
+        "client.tab.move_to_new_window" => s.open_desktop(true, None, tx),
+        "client.window.close" => tx.close_window(),
+        "client.window.fullscreen.toggle" => tx.toggle_full_screen(),
         "client.config.reload" => {
             s.reload_shortcuts();
             s.bindings.clear_modes();

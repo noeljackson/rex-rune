@@ -391,12 +391,8 @@ impl Workspace {
                         .hosts
                         .iter()
                         .find(|h| h.id == v.host)
-                        .and_then(|h| h.model.views.get(&v.session))
-                        .and_then(|view| {
-                            view.active_window_id
-                                .clone()
-                                .or_else(|| view.windows.first()?.window_id.clone())
-                        });
+                        .and_then(|h| h.model.window_for(&v.session))
+                        .and_then(|window| window.window_id.clone());
                 }
                 v
             });

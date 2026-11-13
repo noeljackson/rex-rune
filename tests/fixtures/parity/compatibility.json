@@ -324,10 +324,10 @@
     },
     {
       "name": "client.tab.move_to_new_window",
-      "status": "missing",
-      "registered": false,
-      "remote": "denied",
-      "notes": "Not registered in this Linux baseline."
+      "status": "partial",
+      "registered": true,
+      "remote": "workspace",
+      "notes": "Independent desktop view; target its runtime client label. Closing preserves server programs; moving the last tab keeps a second view."
     },
     {
       "name": "client.tab.new",
@@ -450,24 +450,24 @@
     },
     {
       "name": "client.window.close",
-      "status": "missing",
-      "registered": false,
-      "remote": "denied",
-      "notes": "Not registered in this Linux baseline."
+      "status": "supported",
+      "registered": true,
+      "remote": "workspace",
+      "notes": "Independent desktop view; target its runtime client label. Closing preserves server programs; moving the last tab keeps a second view."
     },
     {
       "name": "client.window.fullscreen.toggle",
-      "status": "missing",
-      "registered": false,
-      "remote": "denied",
-      "notes": "Not registered in this Linux baseline."
+      "status": "supported",
+      "registered": true,
+      "remote": "workspace",
+      "notes": "Independent desktop view; target its runtime client label. Closing preserves server programs; moving the last tab keeps a second view."
     },
     {
       "name": "client.window.new",
-      "status": "missing",
-      "registered": false,
-      "remote": "denied",
-      "notes": "Not registered in this Linux baseline."
+      "status": "supported",
+      "registered": true,
+      "remote": "workspace",
+      "notes": "Independent desktop view; target its runtime client label. Closing preserves server programs; moving the last tab keeps a second view."
     },
     {
       "name": "pane.balance",

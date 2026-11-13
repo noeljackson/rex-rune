@@ -183,6 +183,10 @@ specs! {
     "client.mode.exit_all" => Compatibility,
     "client.scroll.page_up" => Compatibility,
     "client.scroll.page_down" => Compatibility,
+    "client.window.new" => Compatibility,
+    "client.window.close" => Compatibility,
+    "client.window.fullscreen.toggle" => Compatibility,
+    "client.tab.move_to_new_window" => Compatibility,
 }
 
 pub fn find(name: &str) -> Option<&'static Spec> {
@@ -205,6 +209,10 @@ impl Spec {
         use Handler::*;
         match self.handler {
             Compatibility => match self.name {
+                "client.window.new"
+                | "client.window.close"
+                | "client.window.fullscreen.toggle"
+                | "client.tab.move_to_new_window" => Remote::Workspace,
                 "pane.resize"
                 | "pane.balance"
                 | "pane.rename"

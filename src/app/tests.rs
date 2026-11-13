@@ -536,6 +536,26 @@ fn tabbed_workspace(active: &str) -> (Workspace, flume::Receiver<HostCommand>) {
     (ws, rx)
 }
 
+#[test]
+fn tab_indicators_and_activity_follow_the_desktop_pin() {
+    let (mut ws, _) = tabbed_workspace("single");
+    ws.hosts[0].model.pinned_tabs = Some(std::collections::HashMap::from([(
+        "s".into(),
+        "split".into(),
+    )]));
+    assert!(ws.tab_seen(0, "s", "split"));
+    assert!(!ws.tab_seen(0, "s", "single"));
+    assert_eq!(ws.active_tab_place(), Some(("split".into(), 1)));
+    ws.picker(false);
+    ws.panel.as_mut().unwrap().inputs[0] = rune::TextEdit::new("dev");
+    ws.query_changed();
+    assert!(
+        ws.entries().iter().any(
+            |entry| matches!(&entry.action, Intent::Tab(id) if id == "split") && entry.current
+        )
+    );
+}
+
 fn ctrl_shift(rt: &mut Runtime<Workspace>, c: char) {
     rt.key(KeyEvent {
         key: Key::Text(c.to_ascii_uppercase().to_string()),

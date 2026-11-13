@@ -233,7 +233,7 @@ fn the_merged_surfaces_draw() {
     select(&mut rt, "Close pane…");
     settle(&mut rt);
     camera.snap(&mut rt, "merged-commands-pane");
-    select(&mut rt, "Close app");
+    select(&mut rt, "Close desktop window");
     settle(&mut rt);
     camera.snap(&mut rt, "merged-commands-app");
     for c in "close".chars() {

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Independent desktop windows with per-window CLI labels and tab choices, shared preference updates and acknowledged remote close. Closing a view leaves server programs running.
+
 ### Added
 
 - **Workspace remote control:** a separate per-host opt-in for CLI creation and pane management, preserving old view-only consent. Forms and destructive confirmations stay local and expire with the request; queued commands lose their grant on consent or endpoint changes. Server-backed remote actions reply after acknowledgement and refreshed UI state, with failures never replayed. A private CLI acceptance script covers creation, layout changes, confirmation, cancellation and expiry.

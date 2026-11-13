@@ -78,7 +78,7 @@ impl Workspace {
         self.remote_approval = Some(approval);
     }
 
-    fn dispatch_remote_commands(
+    pub(super) fn dispatch_remote_commands(
         &mut self,
         host: usize,
         pending: Pending,
@@ -106,7 +106,7 @@ impl Workspace {
             );
             return;
         }
-        let access = self.settings.hosts[host].remote_access();
+        let access = self.remote_access(host);
         let permitted =
             actions::find(&pending.request.action).is_some_and(|spec| match spec.remote() {
                 actions::Remote::View { .. } => access != RemoteAccess::Off,
@@ -148,7 +148,7 @@ impl Workspace {
             return false;
         };
         self.active == host
-            && self.settings.hosts[host].remote_access() == RemoteAccess::Workspace
+            && self.remote_access(host) == RemoteAccess::Workspace
             && self.hosts[host].model.connected
             && self.hosts[host].model.connection_epoch == approval.pending.epoch
             && approval.pending.received.elapsed() < MAX_WAIT

@@ -5,6 +5,7 @@ mod activity;
 mod bindings;
 mod commands;
 mod compatibility;
+mod desktop;
 mod dialogs;
 mod discover;
 mod find;
@@ -148,11 +149,15 @@ pub(crate) fn view(s: &Workspace, cx: &mut Cx<Workspace>) -> El {
 
 fn poll(s: &mut Workspace, _: f64, tx: &mut Tx) -> bool {
     let now = std::time::Instant::now();
+    let desktop_changed = s.poll_desktop(now, tx);
     let remote_changed = s.poll_remote_navigation(now);
     let workspace_changed = s.poll_remote_workspace(now, tx);
     let updates_changed = s.poll_updates(now, tx);
-    let mut changed =
-        s.poll_navigation(now, tx) || remote_changed || workspace_changed || updates_changed;
+    let mut changed = s.poll_navigation(now, tx)
+        || remote_changed
+        || workspace_changed
+        || updates_changed
+        || desktop_changed;
     if let Some(panel) = &mut s.panel
         && std::mem::take(&mut panel.reveal)
     {
@@ -215,6 +220,31 @@ pub fn run(mut options: Options) -> anyhow::Result<()> {
         Some(path) => (Settings::load(path)?, path.clone()),
         None => Settings::load_default()?,
     };
+    let (family, fallbacks) = options.fonts(&settings);
+    let launch_font = family.to_owned();
+    let fonts = fonts::load(family, fallbacks);
+    rune::text::set_app_font_paths(fonts.paths)
+        .map_err(|_| anyhow::anyhow!("terminal fonts were already initialized"))?;
+    rune::set_app_id("dev.shuv.rex-linux");
+    if let Err(error) = rune::set_app_icon(APP_ICON) {
+        eprintln!("Could not load the Rex window icon: {error}");
+    }
+    let args = std::mem::take(&mut options.rune);
+    let desktop = desktop::Desktop::new(settings.clone(), fonts);
+    desktop.lock().expect("desktop").launch_font = launch_font;
+    let state = desktop::WindowState::first(desktop);
+    rune::run_windows_with_args(Default::default(), args, move |_| {
+        vec![desktop::window(options, settings, path, state, None, false)]
+    });
+    Ok(())
+}
+
+fn build_app(
+    options: Options,
+    settings: Settings,
+    path: std::path::PathBuf,
+    desktop: desktop::WindowState,
+) -> rune::App<Workspace> {
     let size = options
         .window_size
         .split_once('x')
@@ -225,15 +255,7 @@ pub fn run(mut options: Options) -> anyhow::Result<()> {
             ))
         })
         .unwrap_or((1440., 900.));
-    let (family, fallbacks) = options.fonts(&settings);
-    let fonts = fonts::load(family, fallbacks);
-    rune::text::set_app_font_paths(fonts.paths)
-        .map_err(|_| anyhow::anyhow!("terminal fonts were already initialized"))?;
-    rune::set_app_id("dev.shuv.rex-linux");
-    if let Err(error) = rune::set_app_icon(APP_ICON) {
-        eprintln!("Could not load the Rex window icon: {error}");
-    }
-    let rune_args = std::mem::take(&mut options.rune);
+    let fonts = desktop.shared.lock().expect("desktop").fonts;
     let app = rune::App::new(AppSpec {
         min_size: Some((640., 480.)),
         fonts: fonts.files,
@@ -250,19 +272,20 @@ pub fn run(mut options: Options) -> anyhow::Result<()> {
     let handle = app.handle();
     let terminal = fonts.terminal;
     let mut app = app
-        .init(move || Workspace::new(options, settings, path, handle, terminal))
-        .args(rune_args)
+        .init(move || {
+            Workspace::new_desktop(options, settings, path, handle, terminal, Some(desktop))
+        })
         .window_options(rune::WindowOptions {
             borderless: true,
             min_size: Some((640., 480.)),
             ..Default::default()
         })
         .on_ime(input::on_ime)
+        .on_close(desktop::closed)
         .srgb_blend(true);
     if stats::FrameStats::enabled() {
         let mut frames = stats::FrameStats::default();
         app = app.on_frame_encoded(move |f| frames.record(f));
     }
-    app.run();
-    Ok(())
+    app
 }

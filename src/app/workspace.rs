@@ -65,6 +65,7 @@ pub struct Notice {
 }
 
 pub struct Workspace {
+    pub(super) desktop: Option<super::desktop::WindowState>,
     pub logo: Option<rune::Image>,
     pub images: Option<rune::ImageCache>,
     pub options: Options,
@@ -163,15 +164,37 @@ impl TabStrip {
 }
 
 impl Workspace {
+    #[cfg(test)]
     pub fn new(
+        options: Options,
+        settings: Settings,
+        path: PathBuf,
+        handle: AppHandle<Workspace>,
+        terminal_family: Option<&'static str>,
+    ) -> Self {
+        Self::new_desktop(options, settings, path, handle, terminal_family, None)
+    }
+
+    pub(super) fn new_desktop(
         options: Options,
         mut settings: Settings,
         path: PathBuf,
         handle: AppHandle<Workspace>,
         terminal_family: Option<&'static str>,
+        desktop: Option<super::desktop::WindowState>,
     ) -> Self {
-        let launch_font = options.fonts(&settings).0.to_owned();
-        let launch_saved_font = settings.font_family.clone();
+        let (launch_font, launch_saved_font) = desktop.as_ref().map_or_else(
+            || {
+                (
+                    options.fonts(&settings).0.to_owned(),
+                    settings.font_family.clone(),
+                )
+            },
+            |d| {
+                let shared = d.shared.lock().expect("desktop");
+                (shared.launch_font.clone(), shared.saved_font.clone())
+            },
+        );
         let explicit = options.session.is_some()
             || options.new.is_some()
             || options.endpoint != rex_linux::transport::local_endpoint();
@@ -219,7 +242,9 @@ impl Workspace {
                 Err(error) => (None, Some(error)),
             };
         let local_keymap = super::actions::resolve(&settings.shortcut_file.overrides);
+        let window_focused = desktop.as_ref().is_none_or(|d| d.initially_focused);
         let mut this = Self {
+            desktop,
             logo: None,
             images: None,
             options,
@@ -247,7 +272,7 @@ impl Workspace {
             next_remote_operation: 0,
             claimed: HashSet::new(),
             handle,
-            window_focused: true,
+            window_focused,
             drop_hover: None,
             header_reveal: Default::default(),
             area: [0.; 4],
@@ -327,7 +352,7 @@ impl Workspace {
     }
 
     /// A connection to saved host `index` under a fresh id, with its wake thread.
-    fn spawn_host(&mut self, index: usize, explicit: bool) -> HostState {
+    pub(super) fn spawn_host(&mut self, index: usize, explicit: bool) -> HostState {
         let host = &self.settings.hosts[index];
         let cli = explicit && index == self.active;
         let preferred = if cli {
@@ -344,8 +369,18 @@ impl Workspace {
             cli.then(|| self.options.block.clone()).flatten(),
             index == self.active,
             self.declared_theme(),
-            self.settings.client_label(),
+            self.desktop
+                .as_ref()
+                .map_or_else(|| self.settings.client_label(), |d| d.label.clone()),
         );
+        if let Some(desktop) = &self.desktop {
+            let tabs = if index == self.active {
+                desktop.initial_tabs()
+            } else {
+                Default::default()
+            };
+            let _ = connection.commands.send(HostCommand::PinTabs(tabs));
+        }
         let _ = connection
             .commands
             .send(HostCommand::Keymap(Box::new(self.keymap_declaration())));
@@ -364,18 +399,25 @@ impl Workspace {
             })
             .expect("host wake thread");
         let model = connection.model.lock().expect("host model").clone();
-        HostState {
+        let state = HostState {
             consent_generation: std::sync::Arc::new(std::sync::atomic::AtomicU64::new(1)),
             id,
             connection,
             model,
             prefetch: HashSet::new(),
             keymap_notices: HashSet::new(),
+        };
+        if let Some(desktop) = &self.desktop {
+            desktop.shared.lock().expect("desktop").grants.push((
+                host.endpoint.clone(),
+                std::sync::Arc::downgrade(&state.consent_generation),
+            ));
         }
+        state
     }
 
     /// Forget a host's terminals and claims; dropping its `HostState` shuts its worker down.
-    fn forget_host(&mut self, state: HostState) {
+    pub(super) fn forget_host(&mut self, state: HostState) {
         let id = state.id;
         self.terminals.retain(|(host, _), _| *host != id);
         self.claimed.retain(|(host, _)| *host != id);
@@ -606,7 +648,7 @@ impl Workspace {
         self.claim_visible();
         let font = self.settings.font_size;
         for ((host, _), term) in self.terminals.iter_mut() {
-            if *host == id {
+            if *host == id && self.window_focused {
                 term.resize_if_owner(font);
             }
         }
@@ -645,6 +687,7 @@ impl Workspace {
 
     pub fn window_focus(&mut self, focused: bool) {
         self.window_focused = focused;
+        self.record_desktop_focus();
         self.bindings.sequence.clear();
         if focused {
             self.reload_shortcuts();
@@ -664,7 +707,7 @@ impl Workspace {
         }
     }
 
-    fn keymap_declaration(&self) -> rex_linux::connection::keymap::Declaration {
+    pub(super) fn keymap_declaration(&self) -> rex_linux::connection::keymap::Declaration {
         let overrides = self.settings.shortcut_file.overrides.clone();
         rex_linux::connection::keymap::Declaration {
             generation: self.keymap_generation,
@@ -756,6 +799,7 @@ impl Workspace {
         if let Some(notice) = self.settings.shortcut_file.notice.take() {
             self.notify(notice);
         }
+        self.share_preferences();
     }
 
     pub fn refresh_terminal(&mut self, key: &(HostId, String)) {
@@ -763,14 +807,16 @@ impl Workspace {
         if let Some(term) = self.terminals.get_mut(key) {
             term.refresh();
             term.cache_images(self.images.as_ref());
-            term.resize_if_owner(font);
+            if self.window_focused {
+                term.resize_if_owner(font);
+            }
         }
         self.place_find(key);
     }
 
     pub fn update_title(&mut self, tx: &mut Tx) {
         let model = &self.hosts[self.active].model;
-        let title = window_title(
+        let mut title = window_title(
             model
                 .window()
                 .map(|tab| super::activity::tab_name(model, tab))
@@ -778,6 +824,9 @@ impl Workspace {
             model.view().and_then(|v| v.label.as_deref()),
             &self.settings.hosts[self.active].label,
         );
+        if let Some(d) = &self.desktop {
+            title.push_str(&format!(" · {}", d.label));
+        }
         if title != self.title {
             tx.set_title(title.clone());
             self.title = title;
@@ -913,6 +962,7 @@ impl Workspace {
             .map(|h| h.endpoint.clone());
         self.settings.sidebar_width = self.sidebar.width();
         self.settings.sidebar_open = self.sidebar.is_open();
+        self.share_preferences();
         if let Err(error) = self.settings.save(&self.settings_path) {
             self.notify(format!("Preferences not saved: {error:#}"));
         }
@@ -1018,6 +1068,13 @@ impl Workspace {
     }
 
     pub fn request(&mut self, method: &str, mut payload: Value) {
+        let resolved = self.desktop_focus(method, &payload);
+        let method = if let Some((method, value)) = &resolved {
+            payload = value.clone();
+            method.as_str()
+        } else {
+            method
+        };
         if method.starts_with("session.focus") {
             self.bindings.sequence.clear();
         }
@@ -1128,7 +1185,7 @@ impl Workspace {
         }
     }
 
-    fn declare_theme(&mut self) {
+    pub(super) fn declare_theme(&mut self) {
         let args = self.declared_theme();
         for index in 0..self.hosts.len() {
             self.send(index, HostCommand::Theme(args.clone()));
@@ -1443,6 +1500,9 @@ impl Workspace {
     /// Both ask first.
     pub fn close_focused(&mut self, tx: &mut Tx) {
         let Some(window) = self.model().window() else {
+            if self.desktop.is_some() {
+                tx.close_window();
+            }
             return;
         };
         let panes = window.layers.iter().flat_map(|l| &l.blocks).count();
@@ -2100,7 +2160,9 @@ impl Workspace {
         }
         let font = self.settings.font_size;
         for term in self.terminals.values_mut() {
-            term.resize_if_owner(font);
+            if self.window_focused {
+                term.resize_if_owner(font);
+            }
         }
         self.save();
     }

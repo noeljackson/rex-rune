@@ -347,7 +347,9 @@ fn pane_card(
                     let font = s.settings.font_size;
                     if let Some(t) = s.terminals.get_mut(&k1) {
                         t.rect = r;
-                        t.resize_if_owner(font);
+                        if s.window_focused {
+                            t.resize_if_owner(font);
+                        }
                     }
                     s.place_find(&k1);
                 })

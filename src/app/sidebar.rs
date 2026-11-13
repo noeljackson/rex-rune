@@ -239,9 +239,8 @@ fn window_row(s: &Workspace, index: usize, session: &str, tab: &rexrs::api::sess
     let active = index == s.active
         && model.selected.as_deref() == Some(session)
         && model
-            .views
-            .get(session)
-            .is_some_and(|v| v.active_window_id.as_deref() == Some(id));
+            .window_for(session)
+            .is_some_and(|w| w.window_id.as_deref() == Some(id));
     let activity = tab_activity(model, tab);
     let label = tab_name(model, tab);
     let (target_session, target_window) = (session.to_owned(), id.to_owned());

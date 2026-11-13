@@ -29,6 +29,86 @@ fn rename() -> HostCommand {
     }
 }
 
+#[tokio::test]
+async fn desktop_close_waits_for_the_reply_ack_and_revocation_refuses_it() {
+    for allowed in [true, false] {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let endpoint = format!("http://{}", listener.local_addr().unwrap());
+        let (seen, waiting) = tokio::sync::oneshot::channel();
+        let (release, resume) = tokio::sync::oneshot::channel();
+        let server = tokio::spawn(async move {
+            let mut ws = accept(&listener, "rex.control.v1").await;
+            welcome(&mut ws, 12).await;
+            let bootstrap = recv(&mut ws).await;
+            reply(
+                &mut ws,
+                &bootstrap,
+                1,
+                serde_json::to_value(boot()).unwrap(),
+            )
+            .await;
+            let request = recv(&mut ws).await;
+            assert_eq!(request["method"], "client.reply");
+            assert_eq!(request["payload"]["error"].is_null(), allowed);
+            seen.send(()).unwrap();
+            resume.await.unwrap();
+            reply(&mut ws, &request, 2, json!({})).await;
+            assert!(matches!(ws.next().await, Some(Ok(Message::Close(_)))));
+        });
+        let host = HostConnection::spawn(endpoint, None, None, None, false, None);
+        connected(&host).await;
+        let epoch = host.model.lock().unwrap().connection_epoch;
+        host.commands
+            .send(HostCommand::DesktopCloseReply {
+                epoch,
+                call_id: "close".into(),
+                consent: Arc::new(AtomicU64::new(if allowed { 1 } else { 2 })),
+                generation: 1,
+                deadline: Instant::now() + Duration::from_secs(5),
+            })
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(3), waiting)
+            .await
+            .unwrap()
+            .unwrap();
+        assert!(host.model.lock().unwrap().desktop_reply.is_none());
+        release.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(3), async {
+            loop {
+                if host.model.lock().unwrap().desktop_reply.is_some() {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(5)).await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(
+            host.model.lock().unwrap().desktop_reply,
+            Some(("close".into(), allowed))
+        );
+        drop(host);
+        server.await.unwrap();
+    }
+}
+
+#[test]
+fn pinned_tab_survives_another_clients_focus_and_falls_back_when_closed() {
+    let mut model = HostModel {
+        selected: Some(SESSION.into()),
+        pinned_tabs: Some(HashMap::from([(SESSION.into(), "one".into())])),
+        ..Default::default()
+    };
+    let view: session::ViewResponse = serde_json::from_value(json!({"session_id":SESSION,"revision":1,"active_window_id":"two","windows":[{"window_id":"one","focused_block_id":"block:a","layers":[]},{"window_id":"two","focused_block_id":"block:b","layers":[]}]})).unwrap();
+    model.views.insert(SESSION.into(), view);
+    model.pin_current();
+    assert_eq!(model.focused(), Some("block:a"));
+    model.views.get_mut(SESSION).unwrap().windows.remove(0);
+    model.pin_current();
+    assert_eq!(model.focused(), Some("block:b"));
+    assert_eq!(model.pinned_tabs.as_ref().unwrap()[SESSION], "two");
+}
+
 async fn completed(host: &HostConnection, id: u64) -> perform::Outcome {
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {

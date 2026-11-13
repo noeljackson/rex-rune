@@ -117,7 +117,7 @@ fn tab_track(s: &Workspace) -> El {
             let Some(id) = tab.window_id.clone() else {
                 continue;
             };
-            let active = view.active_window_id.as_ref() == Some(&id);
+            let active = model.window().and_then(|w| w.window_id.as_ref()) == Some(&id);
             let label = tab_name(model, tab);
             let activity = tab_activity(model, tab);
             let shown = s.tab_activity_shown(s.active, &id);

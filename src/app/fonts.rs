@@ -1,6 +1,7 @@
 //! Bundled chrome fonts, a fontconfig-resolved terminal family and the user's ordered fallbacks.
 use std::{collections::HashSet, path::PathBuf, process::Command};
 
+#[derive(Clone, Copy)]
 pub struct Fonts {
     pub files: &'static [&'static [u8]],
     /// System font files Rune registers by path, without copying them into heap buffers.
