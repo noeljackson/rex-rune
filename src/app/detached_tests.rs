@@ -23,8 +23,19 @@ fn pair() -> (
         views: HashMap::from([("s".into(), view)]),
         ..Default::default()
     };
-    source.hosts[0].model = model.clone();
-    child.hosts[0].model = model;
+    // The native fixture starts workers for its nonexistent socket. Give these
+    // headless views private channels/models so a worker finishing shutdown
+    // cannot overwrite the injected snapshot during sync/clipboard checks.
+    for workspace in [&mut source, &mut child] {
+        let (commands, _) = flume::unbounded();
+        let (_, wake) = flume::unbounded();
+        workspace.hosts[0].connection = rex_linux::connection::HostConnection {
+            model: Arc::new(Mutex::new(model.clone())),
+            commands,
+            wake,
+        };
+        workspace.hosts[0].model = model.clone();
+    }
     let mut state = WindowState::new(shared.clone(), 2);
     state.target = Some(("s".into(), "a".into()));
     state.dedicated = Some(TabKey {
