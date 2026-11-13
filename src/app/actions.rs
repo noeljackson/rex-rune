@@ -14,6 +14,7 @@ pub const HISTORY_FORWARD: &str = "client.history.forward";
 
 #[derive(Clone, Copy)]
 enum Handler {
+    Compatibility,
     Palette,
     Settings,
     Sidebar,
@@ -144,6 +145,44 @@ specs! {
     super::commands::REPORT_ISSUE => ReportIssue,
     super::about::ABOUT => About,
     super::about::COPY_DEBUG => CopyDebug,
+    "client.config.reload" => Compatibility,
+    "client.config.copy_path" => Compatibility,
+    "client.prompt.previous" => Compatibility,
+    "client.prompt.next" => Compatibility,
+    "pane.resize" => Compatibility,
+    "pane.balance" => Compatibility,
+    "pane.rename" => Compatibility,
+    "pane.close_others" => Compatibility,
+    "pane.move" => Compatibility,
+    "pane.move.left" => Compatibility,
+    "pane.move.right" => Compatibility,
+    "pane.move.up" => Compatibility,
+    "pane.move.down" => Compatibility,
+    "pane.move_to_tab" => Compatibility,
+    "pane.move_to_new_tab" => Compatibility,
+    "pane.focus.left" => Compatibility,
+    "pane.focus.right" => Compatibility,
+    "pane.focus.up" => Compatibility,
+    "pane.focus.down" => Compatibility,
+    "pane.split.left" => Compatibility,
+    "pane.split.right" => Compatibility,
+    "pane.split.up" => Compatibility,
+    "pane.split.down" => Compatibility,
+    "pane.split.auto" => Compatibility,
+    "client.find.open" => Compatibility,
+    "client.find.next" => Compatibility,
+    "client.find.previous" => Compatibility,
+    "client.tab.move.backward" => Compatibility,
+    "client.tab.move.forward" => Compatibility,
+    "client.host.switch" => Compatibility,
+    "client.host.add" => Compatibility,
+    "client.host.remove" => Compatibility,
+    "client.theme.change" => Compatibility,
+    "client.mode.enter" => Compatibility,
+    "client.mode.exit" => Compatibility,
+    "client.mode.exit_all" => Compatibility,
+    "client.scroll.page_up" => Compatibility,
+    "client.scroll.page_down" => Compatibility,
 }
 
 pub fn find(name: &str) -> Option<&'static Spec> {
@@ -161,6 +200,9 @@ impl Spec {
     pub fn remote(&self) -> Remote {
         use Handler::*;
         match self.handler {
+            Compatibility => Remote::Never(
+                "Compatibility actions are available only to the person at this computer.",
+            ),
             NextTab | PreviousTab | GotoTab | FocusPane | SelectSession => {
                 Remote::View { navigation: true }
             }
@@ -239,7 +281,18 @@ impl Spec {
         )
     }
     pub fn repeats(&self) -> bool {
-        self.global()
+        matches!(
+            self.name,
+            "pane.resize"
+                | "client.scroll.page_up"
+                | "client.scroll.page_down"
+                | "client.find.next"
+                | "client.find.previous"
+                | "pane.focus.left"
+                | "pane.focus.right"
+                | "pane.focus.up"
+                | "pane.focus.down"
+        ) || self.global()
             || matches!(
                 self.handler,
                 Handler::FocusPane
@@ -259,6 +312,7 @@ impl Spec {
 
     pub fn title(&self) -> &'static str {
         match self.handler {
+            Handler::Compatibility => super::compatibility::title(self.name),
             Handler::Palette => "Commands",
             Handler::Settings => "Settings",
             Handler::Sidebar => "Toggle sidebar",
@@ -321,6 +375,7 @@ impl Spec {
     }
     pub fn category(&self) -> &'static str {
         match self.handler {
+            Handler::Compatibility => super::compatibility::category(self.name),
             Handler::Palette
             | Handler::Settings
             | Handler::Sidebar
@@ -381,16 +436,25 @@ impl Spec {
             | Handler::FontReset => "Text and view",
         }
     }
-    fn schema(&self) -> Option<Value> {
+    pub(super) fn schema(&self) -> Option<Value> {
+        if matches!(self.handler, Handler::Compatibility) {
+            return super::compatibility::schema(self.name);
+        }
         if matches!(self.handler, Handler::SelectSession) {
             return Some(
                 json!({"type":"object","properties":{"session_id":{"type":"string","minLength":1},"window_id":{"type":"string","minLength":1}},"required":["session_id"],"additionalProperties":false}),
             );
         }
+        if matches!(self.handler, Handler::FocusPane) {
+            return Some(json!({"type":"object","properties":{
+                "direction":{"type":"string","enum":["left","right","up","down"]},
+                "wrap":{"type":"boolean"}
+            },"required":["direction"],"additionalProperties":false}));
+        }
         let (key, schema) = match self.handler {
             Handler::Split => (
                 "direction",
-                json!({"type":"string","enum":SplitWay::ALL.map(SplitWay::arg)}),
+                json!({"type":"string","enum":["right","left","down","up","best_fit","auto"]}),
             ),
             Handler::FocusPane => (
                 "direction",
@@ -404,7 +468,7 @@ impl Spec {
             Handler::SendKey => ("key", json!({"type":"string"})),
             Handler::MoveTab => (
                 "direction",
-                json!({"type":"string","enum":["left","right"]}),
+                json!({"type":"string","enum":["left","right","backward","forward"]}),
             ),
             _ => return None,
         };
@@ -415,6 +479,9 @@ impl Spec {
 
     /// Validate before dispatch: invalid arguments must not partially perform an action.
     pub fn accepts(&self, args: &Value) -> bool {
+        if matches!(self.handler, Handler::Compatibility) {
+            return super::compatibility::accepts(self.name, args);
+        }
         let Some(object) = args.as_object() else {
             return args.is_null()
                 && !matches!(
@@ -438,11 +505,12 @@ impl Spec {
             }
             Handler::Split => object.len() == 1 && split_way(args).is_some(),
             Handler::FocusPane => {
-                object.len() == 1
+                object.keys().all(|key| key == "direction" || key == "wrap")
                     && matches!(
                         args["direction"].as_str(),
                         Some("left" | "right" | "up" | "down")
                     )
+                    && object.get("wrap").is_none_or(Value::is_boolean)
             }
             Handler::Scroll => {
                 object.len() == 1
@@ -457,7 +525,11 @@ impl Spec {
                         .is_some_and(|n| n == -1 || n > 0 && usize::try_from(n).is_ok())
             }
             Handler::MoveTab => {
-                object.len() == 1 && matches!(args["direction"].as_str(), Some("left" | "right"))
+                object.len() == 1
+                    && matches!(
+                        args["direction"].as_str(),
+                        Some("left" | "right" | "backward" | "forward")
+                    )
             }
             Handler::SendKey => {
                 object.len() == 1
@@ -476,6 +548,7 @@ pub fn run(s: &mut Workspace, name: &str, args: &Value, tx: &mut Tx) -> bool {
         return false;
     };
     match spec.handler {
+        Handler::Compatibility => super::compatibility::run(s, name, args, tx),
         Handler::Palette => s.picker(false),
         Handler::Settings => s.perform(Intent::Settings, tx),
         Handler::Sidebar => s.perform(Intent::Sidebar, tx),
@@ -580,7 +653,9 @@ pub fn run(s: &mut Workspace, name: &str, args: &Value, tx: &mut Tx) -> bool {
             let action = match spec.handler {
                 Handler::MuteTab => TabAction::Mute,
                 Handler::CloseOtherTabs => TabAction::CloseOthers,
-                _ if args["direction"] == "left" => TabAction::MoveLeft,
+                _ if matches!(args["direction"].as_str(), Some("left" | "backward")) => {
+                    TabAction::MoveLeft
+                }
                 _ => TabAction::MoveRight,
             };
             if let Some(target) = s.active_tab() {
@@ -639,9 +714,6 @@ pub fn classify(
     binding: &rexrs::api::client::Binding,
     server_actions: &[rexrs::api::client::InspectResponseAction],
 ) -> Kind {
-    if binding.mode.is_some() {
-        return Kind::Skip;
-    }
     if binding.action == "client.key.forward" {
         return Kind::Forward;
     }
@@ -664,7 +736,7 @@ pub fn classify(
 }
 
 /// Bindings that can actually win, including prefix-vs-key conflicts. Parsed chords,
-/// not display strings, decide equality; unreadable/mode bindings cannot fire.
+/// not display strings, decide equality. Mode bindings compete only within their mode.
 pub fn effective<'a>(
     map: &'a rex_linux::keymap::Resolved,
     server: &[rexrs::api::client::InspectResponseAction],
@@ -678,6 +750,9 @@ pub fn effective<'a>(
             continue;
         }
         if result.iter().any(|higher| {
+            if higher.binding.mode != candidate.binding.mode {
+                return false;
+            }
             let keys = higher.chords.as_ref().unwrap();
             keys.starts_with(chords) || chords.starts_with(keys)
         }) {
@@ -731,7 +806,12 @@ pub fn declarations() -> Vec<rexrs::api::client::InspectResponseAction> {
                 .repeats(s.repeats());
             action.args = s.schema();
             if let Remote::Never(message) = s.remote() {
-                action.description = Some(format!("Not available remotely. {message}"));
+                action.description = Some(format!(
+                    "{}Not available remotely. {message}",
+                    super::compatibility::unsupported(s.name)
+                        .map(|reason| format!("{reason} "))
+                        .unwrap_or_default()
+                ));
             }
             action
         })
@@ -743,6 +823,7 @@ pub fn declarations() -> Vec<rexrs::api::client::InspectResponseAction> {
 pub fn resolve(overrides: &rex_linux::keymap::Overrides) -> rex_linux::keymap::Resolved {
     let actions = declarations();
     let mut map = rex_linux::keymap::resolve(&[rex_linux::keymap::defaults()], overrides, &actions);
+    diagnose_compatibility(&mut map);
     for binding in &map.bindings {
         let binding = &binding.binding;
         if find(&binding.action)
@@ -759,6 +840,29 @@ pub fn resolve(overrides: &rex_linux::keymap::Overrides) -> rex_linux::keymap::R
         }
     }
     map
+}
+
+/// Client-specific limitations must also appear for bindings returned by a server.
+pub fn diagnose_compatibility(map: &mut rex_linux::keymap::Resolved) {
+    for row in &map.bindings {
+        if let Some(message) = super::compatibility::unsupported(&row.binding.action)
+            && !map.diagnostics.iter().any(|d| {
+                d.message == message
+                    && d.action.as_ref() == Some(&row.binding.action)
+                    && d.source == row.binding.source
+                    && d.key.as_deref() == Some(&row.binding.keys.join(" "))
+            })
+        {
+            map.diagnostics.push(rexrs::api::client::Diagnostic {
+                severity: "warning".into(),
+                source: row.binding.source.clone(),
+                message: message.into(),
+                action: Some(row.binding.action.clone()),
+                key: Some(row.binding.keys.join(" ")),
+                mode: row.binding.mode.clone(),
+            });
+        }
+    }
 }
 
 #[cfg(test)]

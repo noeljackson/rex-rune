@@ -1,0 +1,643 @@
+{
+  "format": 1,
+  "captured": "2026-11-12",
+  "app": {
+    "name": "Rex Beta",
+    "version": "0.1.0 (1925)"
+  },
+  "server": {
+    "version": "0.1.0-preview.14",
+    "api_revision": 12
+  },
+  "source": "rex --autostart=false -C <client> actions --json; metadata only",
+  "actions": [
+    {
+      "name": "client.agents.setup"
+    },
+    {
+      "name": "client.appearance.switch_mode",
+      "args": {
+        "properties": {
+          "mode": {
+            "description": "Use light or dark appearance, or toggle the currently visible appearance.",
+            "enum": [
+              "light",
+              "dark",
+              "toggle"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "client.close"
+    },
+    {
+      "name": "client.config.copy_path"
+    },
+    {
+      "name": "client.config.reload"
+    },
+    {
+      "name": "client.debug.copy"
+    },
+    {
+      "name": "client.diagnostics"
+    },
+    {
+      "name": "client.find.next",
+      "repeats": true
+    },
+    {
+      "name": "client.find.open"
+    },
+    {
+      "name": "client.find.previous",
+      "repeats": true
+    },
+    {
+      "name": "client.font.decrease",
+      "repeats": true
+    },
+    {
+      "name": "client.font.increase",
+      "repeats": true
+    },
+    {
+      "name": "client.font.reset"
+    },
+    {
+      "name": "client.host.add"
+    },
+    {
+      "name": "client.host.remove"
+    },
+    {
+      "name": "client.host.switch"
+    },
+    {
+      "name": "client.key.forward",
+      "repeats": true
+    },
+    {
+      "name": "client.mode.enter",
+      "args": {
+        "properties": {
+          "name": {
+            "description": "The mode to enter, as the configuration names it.",
+            "type": "string"
+          },
+          "once": {
+            "description": "Leave the mode after one of its own keys performs. The default is false.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "client.mode.exit"
+    },
+    {
+      "name": "client.mode.exit_all"
+    },
+    {
+      "name": "client.notice.dismiss"
+    },
+    {
+      "name": "client.onboarding"
+    },
+    {
+      "name": "client.pair_device"
+    },
+    {
+      "name": "client.palette.toggle"
+    },
+    {
+      "name": "client.pane_header.reveal"
+    },
+    {
+      "name": "client.permissions"
+    },
+    {
+      "name": "client.prompt.next",
+      "repeats": true
+    },
+    {
+      "name": "client.prompt.previous",
+      "repeats": true
+    },
+    {
+      "name": "client.quick_look"
+    },
+    {
+      "name": "client.scroll.page_down",
+      "repeats": true
+    },
+    {
+      "name": "client.scroll.page_up",
+      "repeats": true
+    },
+    {
+      "name": "client.server.restart"
+    },
+    {
+      "name": "client.settings"
+    },
+    {
+      "name": "client.shortcuts.edit"
+    },
+    {
+      "name": "client.sidebar.activity.by_priority"
+    },
+    {
+      "name": "client.sidebar.activity.by_session"
+    },
+    {
+      "name": "client.sidebar.activity.toggle"
+    },
+    {
+      "name": "client.sidebar.filter.focus"
+    },
+    {
+      "name": "client.sidebar.toggle"
+    },
+    {
+      "name": "client.tab.close"
+    },
+    {
+      "name": "client.tab.close_others"
+    },
+    {
+      "name": "client.tab.goto",
+      "args": {
+        "properties": {
+          "index": {
+            "description": "The tab to show. Tabs count from 1, and -1 means the last tab.",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "index"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "client.tab.move",
+      "args": {
+        "properties": {
+          "direction": {
+            "enum": [
+              "backward",
+              "forward"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "type": "object"
+      },
+      "repeats": true
+    },
+    {
+      "name": "client.tab.move.backward",
+      "repeats": true
+    },
+    {
+      "name": "client.tab.move.forward",
+      "repeats": true
+    },
+    {
+      "name": "client.tab.move_to_new_window"
+    },
+    {
+      "name": "client.tab.new"
+    },
+    {
+      "name": "client.tab.next",
+      "repeats": true
+    },
+    {
+      "name": "client.tab.previous",
+      "repeats": true
+    },
+    {
+      "name": "client.tab.rename"
+    },
+    {
+      "name": "client.tab_style.toggle"
+    },
+    {
+      "name": "client.theme.change",
+      "args": {
+        "properties": {
+          "name": {
+            "description": "Theme name or ID to fuzzy-match. Omit to open the theme picker.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "client.theme.import",
+      "args": {
+        "properties": {
+          "path": {
+            "description": "Absolute path of a Ghostty theme or iTerm color file on this machine.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "client.toolbar.reveal"
+    },
+    {
+      "name": "client.update.accept"
+    },
+    {
+      "name": "client.update.accept_when_idle"
+    },
+    {
+      "name": "client.update.check"
+    },
+    {
+      "name": "client.update.install"
+    },
+    {
+      "name": "client.update.set_automation",
+      "args": {
+        "properties": {
+          "level": {
+            "description": "notify offers a found update, download also downloads it, and install also relaunches into it once Rex is out of sight.",
+            "enum": [
+              "notify",
+              "download",
+              "install"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "client.update.set_channel",
+      "args": {
+        "properties": {
+          "channel": {
+            "description": "preview follows tagged builds for testers, and snapshot follows every commit that passes CI.",
+            "enum": [
+              "preview",
+              "snapshot"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "client.update.status"
+    },
+    {
+      "name": "client.version.copy"
+    },
+    {
+      "name": "client.visibility.toggle"
+    },
+    {
+      "name": "client.window.close"
+    },
+    {
+      "name": "client.window.fullscreen.toggle"
+    },
+    {
+      "name": "client.window.new"
+    },
+    {
+      "name": "pane.balance"
+    },
+    {
+      "name": "pane.close"
+    },
+    {
+      "name": "pane.close_others"
+    },
+    {
+      "name": "pane.copy"
+    },
+    {
+      "name": "pane.copy_id"
+    },
+    {
+      "name": "pane.float"
+    },
+    {
+      "name": "pane.focus",
+      "args": {
+        "properties": {
+          "direction": {
+            "enum": [
+              "left",
+              "right",
+              "up",
+              "down"
+            ],
+            "type": "string"
+          },
+          "wrap": {
+            "description": "Continue from the opposite edge of the layout when no pane lies in the direction. The default is true.",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "type": "object"
+      },
+      "repeats": true
+    },
+    {
+      "name": "pane.focus.down",
+      "repeats": true
+    },
+    {
+      "name": "pane.focus.left",
+      "repeats": true
+    },
+    {
+      "name": "pane.focus.right",
+      "repeats": true
+    },
+    {
+      "name": "pane.focus.up",
+      "repeats": true
+    },
+    {
+      "name": "pane.focus_next",
+      "repeats": true
+    },
+    {
+      "name": "pane.focus_previous",
+      "repeats": true
+    },
+    {
+      "name": "pane.go_to"
+    },
+    {
+      "name": "pane.go_to_directory"
+    },
+    {
+      "name": "pane.insert_path"
+    },
+    {
+      "name": "pane.minimize_all_floating"
+    },
+    {
+      "name": "pane.minimize_floating"
+    },
+    {
+      "name": "pane.move",
+      "args": {
+        "properties": {
+          "direction": {
+            "enum": [
+              "left",
+              "right",
+              "up",
+              "down"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "type": "object"
+      },
+      "repeats": true
+    },
+    {
+      "name": "pane.move.down",
+      "repeats": true
+    },
+    {
+      "name": "pane.move.left",
+      "repeats": true
+    },
+    {
+      "name": "pane.move.right",
+      "repeats": true
+    },
+    {
+      "name": "pane.move.up",
+      "repeats": true
+    },
+    {
+      "name": "pane.move_to_new_tab"
+    },
+    {
+      "name": "pane.move_to_tab"
+    },
+    {
+      "name": "pane.new_floating"
+    },
+    {
+      "name": "pane.paste"
+    },
+    {
+      "name": "pane.rename"
+    },
+    {
+      "name": "pane.resize",
+      "args": {
+        "properties": {
+          "amount": {
+            "description": "How far to move the divider, as a percentage of the split it divides. The default is 5.",
+            "exclusiveMinimum": 0,
+            "type": "number"
+          },
+          "direction": {
+            "enum": [
+              "left",
+              "right",
+              "up",
+              "down"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "type": "object"
+      },
+      "repeats": true
+    },
+    {
+      "name": "pane.select_all"
+    },
+    {
+      "name": "pane.send_key",
+      "args": {
+        "properties": {
+          "key": {
+            "description": "The key to send, written the way a key binding is, such as \"ctrl+u\".",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "type": "object"
+      },
+      "repeats": true
+    },
+    {
+      "name": "pane.split",
+      "args": {
+        "properties": {
+          "direction": {
+            "enum": [
+              "right",
+              "down",
+              "left",
+              "up",
+              "auto"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "direction"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "pane.split.auto"
+    },
+    {
+      "name": "pane.split.down"
+    },
+    {
+      "name": "pane.split.left"
+    },
+    {
+      "name": "pane.split.right"
+    },
+    {
+      "name": "pane.split.up"
+    },
+    {
+      "name": "pane.view_activity"
+    },
+    {
+      "name": "pane.zoom"
+    },
+    {
+      "name": "session.close"
+    },
+    {
+      "name": "session.collapse",
+      "args": {
+        "properties": {
+          "session_id": {
+            "description": "The identifier that the session's server assigned. If omitted, the selected session.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "session.collapse_others",
+      "args": {
+        "properties": {
+          "session_id": {
+            "description": "The identifier that the session's server assigned. If omitted, the selected session.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "session.expand",
+      "args": {
+        "properties": {
+          "session_id": {
+            "description": "The identifier that the session's server assigned. If omitted, the selected session.",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    {
+      "name": "session.new"
+    },
+    {
+      "name": "session.next",
+      "repeats": true
+    },
+    {
+      "name": "session.open_on_web"
+    },
+    {
+      "name": "session.previous",
+      "repeats": true
+    },
+    {
+      "name": "session.refresh"
+    },
+    {
+      "name": "session.rename"
+    },
+    {
+      "name": "session.select",
+      "args": {
+        "properties": {
+          "session_id": {
+            "description": "The identifier that the session's server assigned.",
+            "type": "string"
+          },
+          "window_id": {
+            "description": "A window in the session to show. If omitted, the session opens as usual.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "type": "object"
+      }
+    },
+    {
+      "name": "session.switch"
+    }
+  ]
+}

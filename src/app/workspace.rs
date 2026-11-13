@@ -441,7 +441,7 @@ impl Workspace {
     pub fn sync(&mut self, index: usize, tx: &mut Tx) {
         let id = self.hosts[index].id;
         let old_session = self.hosts[index].model.selected.clone();
-        let (model, notices, clipboard, bells, client_actions, performs) = {
+        let (mut model, notices, clipboard, bells, client_actions, performs) = {
             let mut shared = self.hosts[index]
                 .connection
                 .model
@@ -503,6 +503,17 @@ impl Workspace {
                 || old_session != model.selected)
         {
             self.bindings.sequence.clear();
+        }
+        if let Some(snapshot) = &mut model.keymap
+            && snapshot
+                .resolved
+                .bindings
+                .iter()
+                .any(|row| super::compatibility::unsupported(&row.binding.action).is_some())
+        {
+            super::actions::diagnose_compatibility(
+                &mut std::sync::Arc::make_mut(snapshot).resolved,
+            );
         }
         self.hosts[index].model = model;
         self.announce_keymap_problems(index);
@@ -1185,7 +1196,7 @@ impl Workspace {
         // Only pane actions carry a captured pane, and session actions a captured session,
         // into the panel they open.
         if let Some(panel) = &mut self.panel {
-            if !matches!(action, Intent::Pane(..)) {
+            if !matches!(action, Intent::Pane(..) | Intent::MovePaneTo(_)) {
                 panel.target = None;
             }
             if !matches!(action, Intent::Session(..)) {
@@ -1203,6 +1214,8 @@ impl Workspace {
             Intent::Switcher => self.picker(true),
             Intent::NewSession => self.create_session(self.active, None, tx),
             Intent::CreateOn(host, name) => self.create_session(host, name, tx),
+            Intent::SwitchHost(host) => { self.close_panel(tx); self.activate_host(host, tx); }
+            Intent::MovePaneTo(id) => self.move_pane_to_tab(&id, tx),
             Intent::ChooseHost(query) => {
                 let title = if query.is_empty() {
                     "Create session on…".to_owned()
@@ -2016,6 +2029,9 @@ impl Workspace {
                     return;
                 }
                 match target.filter(|_| method == "block.close") {
+                    Some(target) if payload.get("block_ids").is_some() => {
+                        self.confirmed_pane_close(&target, &payload);
+                    }
                     Some(target) => {
                         self.send(target.host, HostCommand::Request { method, payload })
                     }

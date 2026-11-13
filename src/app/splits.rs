@@ -42,6 +42,9 @@ impl SplitWay {
     }
 
     pub fn parse(arg: &str) -> Option<Self> {
+        if arg == "auto" {
+            return Some(Self::BestFit);
+        }
         Self::ALL.into_iter().find(|way| way.arg() == arg)
     }
 
