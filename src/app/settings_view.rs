@@ -17,7 +17,7 @@ use rex_linux::settings::{
     NoticePosition, NotificationsConfig, PaneDensity, PaneHeader, RemoteAccess,
 };
 use rune::{Cursor, El, ScrollPos, ScrollSpec, Tx, col, el, row, text};
-use rune_kit::{IconButton, Switch};
+use rune_kit::{IconButton, Switch, TextInput};
 
 /// The page's header row, above its scroll region.
 const HEADER: f32 = 56.;
@@ -35,42 +35,50 @@ const PANE_HEADERS: [PaneHeader; 4] = [
 ];
 
 fn interface(s: &Workspace) -> El {
-    let k = kit();
     let percent = (s.settings.ui_scale * 100.).round() as i32;
-    let corner = match s.settings.notice_position {
-        NoticePosition::TopRight => 0,
-        NoticePosition::BottomRight => 1,
-    };
     page([
         section(
             "Appearance",
-            [card([
-                setting(
-                    "Theme",
-                    "Terminals take the matching theme until you choose one.",
-                    value_popup(
-                        "chrome-theme",
-                        s.settings.chrome_theme.name(),
-                        Intent::ChooseChrome,
+            [
+                super::settings_preview::appearance(),
+                card([
+                    setting(
+                        "Theme",
+                        "Terminals take the matching theme until you choose one.",
+                        value_popup(
+                            "chrome-theme",
+                            s.settings.chrome_theme.name(),
+                            Intent::ChooseChrome,
+                        ),
                     ),
-                ),
-                setting(
-                    "Interface zoom",
-                    "Chrome and terminals together, from 70% to 150%.",
-                    row()
-                        .gap(8.)
-                        .center_y()
-                        .child(stepper(
-                            "zoom",
-                            format!("{percent}%"),
-                            |s, tx| s.change_ui_scale(-1, tx),
-                            |s, tx| s.change_ui_scale(1, tx),
-                        ))
-                        .child(button("zoom-reset", "Reset", Pill::Neutral, |s, tx| {
-                            s.change_ui_scale(0, tx)
-                        })),
-                ),
-            ])],
+                    setting(
+                        "Interface zoom",
+                        "Chrome and terminals together, from 70% to 150%.",
+                        row()
+                            .gap(8.)
+                            .center_y()
+                            .child(stepper(
+                                "zoom",
+                                format!("{percent}%"),
+                                |s, tx| s.change_ui_scale(-1, tx),
+                                |s, tx| s.change_ui_scale(1, tx),
+                            ))
+                            .child(button("zoom-reset", "Reset", Pill::Neutral, |s, tx| {
+                                s.change_ui_scale(0, tx)
+                            })),
+                    ),
+                ]),
+            ],
+        ),
+        section(
+            "Toolbar",
+            [card([disclosure(
+                "customize-tabs",
+                "Customize tabs",
+                "Position and session sidebar",
+                "",
+                |s, tx| s.settings_open(SettingsSection::Tabs, "customize-tabs", tx),
+            )])],
         ),
         section(
             "Panes",
@@ -115,8 +123,18 @@ fn interface(s: &Workspace) -> El {
                         tx.instant();
                     },
                 ),
+                disclosure("customize-panes", "Customize panes", "", "", |s, tx| {
+                    s.settings_open(SettingsSection::Panes, "customize-panes", tx)
+                }),
             ])],
         ),
+    ])
+}
+
+fn tabs(s: &Workspace) -> El {
+    let k = kit();
+    page([
+        section("Tab appearance", [super::settings_preview::tabs(s)]),
         section(
             "Sidebar and tabs",
             [card([
@@ -147,23 +165,32 @@ fn interface(s: &Workspace) -> El {
                 ),
             ])],
         ),
+    ])
+}
+
+fn panes(s: &Workspace) -> El {
+    page([
+        section("Pane appearance", [super::settings_preview::panes(s)]),
         section(
-            "Notices",
-            [card([select_row(
-                "notice-position",
-                "Position",
-                "Where in-app notices appear.",
-                &["Top right", "Bottom right"],
-                corner,
-                |s, i, _| {
-                    s.set_notice_position(if i == 0 {
-                        NoticePosition::TopRight
-                    } else {
-                        NoticePosition::BottomRight
-                    })
-                },
+            "Padding",
+            [card([setting(
+                "Minimum size",
+                "Space around terminal content, from 0 to 32 pt.",
+                stepper(
+                    "pane-padding",
+                    format!("{} pt", s.settings.pane_padding),
+                    |s, _| {
+                        s.settings.pane_padding = (s.settings.pane_padding - 1.).max(0.);
+                        s.save();
+                    },
+                    |s, _| {
+                        s.settings.pane_padding = (s.settings.pane_padding + 1.).min(32.);
+                        s.save();
+                    },
+                ),
             )])],
         ),
+        footnote("Density and pane header behavior are on the Interface page."),
     ])
 }
 
@@ -210,7 +237,28 @@ fn notifications(s: &Workspace) -> El {
             &mut n.working
         }),
     ];
+    let corner = usize::from(s.settings.notice_position == NoticePosition::BottomRight);
     page([
+        section(
+            "In-app notifications",
+            [
+                super::settings_preview::notifications(s),
+                card([select_row(
+                    "notice-position",
+                    "Notification position",
+                    "Where in-app notices appear.",
+                    &["Top right", "Bottom right"],
+                    corner,
+                    |s, i, _| {
+                        s.set_notice_position(if i == 0 {
+                            NoticePosition::TopRight
+                        } else {
+                            NoticePosition::BottomRight
+                        })
+                    },
+                )]),
+            ],
+        ),
         section(
             "",
             [card([
@@ -297,54 +345,38 @@ fn terminal(s: &Workspace) -> El {
     page([
         section(
             "Typography",
-            std::iter::once(card([
-                disclosure(
-                    "font-change",
-                    "Font family",
-                    "Applies when you reopen the client.",
-                    saved,
-                    |s, tx| s.perform(Intent::Fonts, tx),
-                ),
-                setting(
-                    "Font size",
-                    "From 8 to 48 pt, for every terminal.",
-                    stepper(
-                        "font",
-                        format!("{} pt", s.settings.font_size),
-                        |s, _| s.change_font(-1.),
-                        |s, _| s.change_font(1.),
+            std::iter::once(super::settings_preview::typography(s)).chain(
+                std::iter::once(card([
+                    disclosure(
+                        "font-change",
+                        "Font family",
+                        "Applies when you reopen the client.",
+                        saved,
+                        |s, tx| s.perform(Intent::Fonts, tx),
                     ),
-                ),
-                setting(
-                    "Fallback fonts",
-                    "For glyphs the font lacks, before the system's own fallbacks.",
-                    value(fallbacks).truncate().max_w(260.),
-                ),
-            ]))
-            .chain(drawn.map(|words| footnote(words).key("font-drawn"))),
-        ),
-        section(
-            "Layout",
-            [card([setting(
-                "Pane padding",
-                "Space around each terminal's content, from 0 to 32 pt.",
-                stepper(
-                    "pane-padding",
-                    format!("{} pt", s.settings.pane_padding),
-                    |s, _| {
-                        s.settings.pane_padding = (s.settings.pane_padding - 1.).max(0.);
-                        s.save();
-                    },
-                    |s, _| {
-                        s.settings.pane_padding = (s.settings.pane_padding + 1.).min(32.);
-                        s.save();
-                    },
-                ),
-            )])],
+                    setting(
+                        "Font size",
+                        "From 8 to 48 pt, for every terminal.",
+                        stepper(
+                            "font",
+                            format!("{} pt", s.settings.font_size),
+                            |s, _| s.change_font(-1.),
+                            |s, _| s.change_font(1.),
+                        ),
+                    ),
+                    setting(
+                        "Fallback fonts",
+                        "For glyphs the font lacks, before the system's own fallbacks.",
+                        value(fallbacks).truncate().max_w(260.),
+                    ),
+                ]))
+                .chain(drawn.map(|words| footnote(words).key("font-drawn"))),
+            ),
         ),
         section(
             "Colours",
             [
+                super::settings_preview::terminal_theme(s),
                 card([setting(
                     "Theme",
                     "",
@@ -759,6 +791,89 @@ fn shortcuts(s: &Workspace) -> El {
     page(sections)
 }
 
+fn history_buttons(s: &Workspace) -> El {
+    let mut buttons = row()
+        .h(36.)
+        .radius(18.)
+        .fill(white(0.06))
+        .border(1., white(0.08))
+        .clip_rounded(18.);
+    for (forward, icon, label, enabled) in [
+        (false, &LEFT, "Back", s.settings_navigation.can_back()),
+        (true, &RIGHT, "Forward", s.settings_navigation.can_forward()),
+    ] {
+        if forward {
+            buttons = buttons.child(el().w(1.).h(20.).my(8.).fill(white(0.08)));
+        }
+        let mut button = el()
+            .key(if forward {
+                "settings-forward"
+            } else {
+                "settings-back"
+            })
+            .role("button")
+            .label(label)
+            .size(38., 36.)
+            .center()
+            .focusable(enabled)
+            .focus_ring(2., -2., rgb(accent()))
+            .help(if enabled {
+                label
+            } else if forward {
+                "No later Settings page"
+            } else {
+                "No earlier Settings page"
+            })
+            .on_press_tx(move |s: &mut Workspace, tx: &mut Tx| {
+                if enabled {
+                    s.settings_history(forward, tx);
+                }
+            })
+            .on_key(move |s: &mut Workspace, ev: &rune::KeyEvent, tx: &mut Tx| {
+                if enabled && (ev.key == rune::Key::Enter || ev.key == rune::Key::Text(" ".into()))
+                {
+                    s.settings_history(forward, tx);
+                    true
+                } else {
+                    false
+                }
+            })
+            .child(glyph(icon, 16., rgb(ink())));
+        button = if enabled {
+            button
+                .cursor(Cursor::Pointer)
+                .hover(white(0.08))
+                .press(white(0.12))
+        } else {
+            button.opacity(0.35)
+        };
+        buttons = buttons.child(button);
+    }
+    buttons
+}
+
+fn search_results(s: &Workspace) -> El {
+    let results = super::settings_navigation::results(&s.settings_navigation.search.text);
+    if results.is_empty() {
+        return page([section(
+            "No matching settings",
+            [footnote(
+                "Try a setting name such as font, panes, theme or shortcuts.",
+            )],
+        )]);
+    }
+    page([section(
+        "Settings",
+        [card(results.into_iter().enumerate().map(|(i, result)| {
+            let key = format!("settings-result:{i}");
+            let origin = key.clone();
+            disclosure(&key, result.title, "", result.page.title(), move |s, tx| {
+                s.settings_open(result.page, &origin, tx)
+            })
+        }))],
+    )])
+}
+
 /// The section list, in gapped groups: the window, what runs in it, and the app itself.
 fn nav(s: &Workspace, width: f32) -> El {
     let mut list = col()
@@ -767,7 +882,7 @@ fn nav(s: &Workspace, width: f32) -> El {
         .focus_group()
         .gap(2.);
     for section in SettingsSection::ALL {
-        let selected = s.settings_section == section;
+        let selected = s.settings_section.root() == section;
         let mut item = row()
             .key(format!("settings-section:{}", section.key()))
             .role("tab")
@@ -775,6 +890,7 @@ fn nav(s: &Workspace, width: f32) -> El {
             .w_full()
             .h(32.)
             .px(10.)
+            .gap(10.)
             .center_y()
             .radius(8.)
             .continuous_corners()
@@ -782,9 +898,14 @@ fn nav(s: &Workspace, width: f32) -> El {
             .focusable(true)
             .focus_selected(selected)
             .focus_ring(2., 0., rgb(accent()))
-            .on_press(move |s: &mut Workspace| s.open_section(section))
+            .on_press_tx(move |s: &mut Workspace, tx: &mut Tx| {
+                s.settings_open(section, &format!("settings-section:{}", section.key()), tx)
+            })
+            .child(super::settings_icons::category(section))
             .child(
                 text(section.title())
+                    .min_w(0.)
+                    .truncate()
                     .font(if selected { medium(13.) } else { ui(13.) })
                     .color(rgb(if selected { ink() } else { muted() })),
             );
@@ -813,6 +934,53 @@ fn nav(s: &Workspace, width: f32) -> El {
                 .px(10.)
                 .pt(6.),
         )
+        .child(
+            TextInput::new(&s.settings_navigation.search)
+                .placeholder("Search Settings")
+                .leading_icon(&SEARCH)
+                .leading_icon_size(13.)
+                .text_style(ui(12.))
+                .height(28.)
+                .plain()
+                .on_edit(|s: &mut Workspace| &mut s.settings_navigation.search)
+                .on_change(|s: &mut Workspace, tx: &mut Tx| {
+                    s.settings_navigation.offset = rune::Live::new(0.);
+                    tx.scroll_to_y(s.settings_navigation.scroll_key(s.settings_section), 0.);
+                })
+                .on_key(|s: &mut Workspace, ev: &rune::KeyEvent, tx: &mut Tx| {
+                    if super::settings_navigation::on_key(s, ev, tx) {
+                        return true;
+                    }
+                    match ev.key {
+                        rune::Key::Escape => {
+                            if s.settings_navigation.search.text.is_empty() {
+                                s.cancel_panel(tx);
+                            } else {
+                                s.settings_navigation.search = rune::TextEdit::new("");
+                                tx.focus("settings-search", false);
+                            }
+                        }
+                        rune::Key::Enter
+                            if !s.settings_navigation.search.text.trim().is_empty() =>
+                        {
+                            if let Some(result) = super::settings_navigation::results(
+                                &s.settings_navigation.search.text,
+                            )
+                            .first()
+                            {
+                                s.settings_open(result.page, "settings-search", tx);
+                            }
+                        }
+                        rune::Key::Down if !s.settings_navigation.search.text.trim().is_empty() => {
+                            tx.focus("settings-result:0", true)
+                        }
+                        _ => return super::input::global_key(s, ev, tx),
+                    }
+                    true
+                })
+                .build(kit())
+                .key("settings-search"),
+        )
         .child(list)
 }
 
@@ -821,15 +989,22 @@ fn nav(s: &Workspace, width: f32) -> El {
 fn surface(s: &Workspace, viewport: [f32; 2]) -> El {
     let k = kit();
     let section = s.settings_section;
-    let body = match section {
-        SettingsSection::Interface => interface(s),
-        SettingsSection::Terminal => terminal(s),
-        SettingsSection::Notifications => notifications(s),
-        SettingsSection::Integrations => super::integrations::section(s),
-        SettingsSection::Hosts => hosts(s),
-        SettingsSection::Shortcuts => shortcuts(s),
-        SettingsSection::Updates => super::updates::section(s),
-        SettingsSection::About => super::about::section(s),
+    let searching = !s.settings_navigation.search.text.trim().is_empty();
+    let body = if searching {
+        search_results(s)
+    } else {
+        match section {
+            SettingsSection::Interface => interface(s),
+            SettingsSection::Tabs => tabs(s),
+            SettingsSection::Panes => panes(s),
+            SettingsSection::Terminal => terminal(s),
+            SettingsSection::Notifications => notifications(s),
+            SettingsSection::Integrations => super::integrations::section(s),
+            SettingsSection::Hosts => hosts(s),
+            SettingsSection::Shortcuts => shortcuts(s),
+            SettingsSection::Updates => super::updates::section(s),
+            SettingsSection::About => super::about::section(s),
+        }
     };
     let width = PANEL_WIDTH.min(viewport[0] * 0.92);
     // Under the toolbar, which stays whole above it, with a margin at both ends.
@@ -837,8 +1012,9 @@ fn surface(s: &Workspace, viewport: [f32; 2]) -> El {
     let nav_width = NAV_WIDTH.min(width * 0.3);
     let (page_width, page_height) = (width - nav_width - 1., height - HEADER);
     let thumb = s.settings_fx.thumb.clone();
+    let scroll_offset = s.settings_navigation.offset.clone();
     let scroller = col()
-        .key(format!("settings-scroll:{}", section.key()))
+        .key(s.settings_navigation.scroll_key(section))
         .grow(1.)
         .min_h(0.)
         .w_full()
@@ -847,6 +1023,7 @@ fn surface(s: &Workspace, viewport: [f32; 2]) -> El {
         })
         .scroll_edge_fade(16.)
         .on_scroll_offset(move |at: ScrollPos| {
+            scroll_offset.set(at.offset[1]);
             let hidden = at.max[1];
             if hidden < 1. {
                 thumb.set([0.; 4]);
@@ -864,11 +1041,27 @@ fn surface(s: &Workspace, viewport: [f32; 2]) -> El {
         .child(
             row()
                 .h(HEADER)
-                .pl(PAGE_INSET + super::settings_kit::INSET)
+                .pl(8.)
                 .pr(PAGE_INSET)
                 .center_y()
-                .justify_between()
-                .child(text(section.title()).font(strong(17.)).color(rgb(ink())))
+                .gap(10.)
+                .child(history_buttons(s))
+                .child(
+                    text(if searching {
+                        "Search Results"
+                    } else {
+                        section.title()
+                    })
+                    .key("settings-page-title")
+                    .role("heading")
+                    .focusable(true)
+                    .tab_index(-1)
+                    .font(strong(17.))
+                    .color(rgb(ink()))
+                    .grow(1.)
+                    .min_w(0.)
+                    .truncate(),
+                )
                 .child(
                     IconButton::new(&CLOSE)
                         .label("Close")

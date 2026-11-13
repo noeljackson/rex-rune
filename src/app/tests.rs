@@ -3203,7 +3203,7 @@ fn pane_padding_controls_reach_zero_and_save() {
     let mut ws = workspace();
     ws.perform(Intent::Settings, &mut rune::Tx::default());
     let mut rt = runtime(ws);
-    click(&mut rt, "settings-section:terminal");
+    click(&mut rt, "customize-panes");
     for _ in 0..9 {
         click(&mut rt, "pane-padding-smaller");
     }
@@ -3223,6 +3223,98 @@ fn pane_padding_controls_reach_zero_and_save() {
         1.
     );
     std::fs::remove_file(&rt.state.settings_path).unwrap();
+}
+
+#[test]
+fn sidebar_program_icons_stay_present_and_stationary_through_tab_selection() {
+    for sidebar in [true, false] {
+        let (mut ws, _rx) = tabbed_workspace("single");
+        ws.sidebar.set_open(true);
+        ws.settings.vertical_tabs = sidebar;
+        ws.hosts[0]
+            .model
+            .programs
+            .insert("block:a".into(), "codex".into());
+        ws.hosts[0]
+            .model
+            .programs
+            .insert("block:b".into(), "claude".into());
+        let mut rt = runtime(ws);
+        for _ in 0..90 {
+            rt.frame(1. / 60.);
+        }
+        let icons = |rt: &Runtime<Workspace>| {
+            rt.elements()
+                .into_iter()
+                .filter(|e| {
+                    !e.exiting
+                        && e.role == "icon"
+                        && if sidebar {
+                            e.path.contains("sidebar-tab:0:s:")
+                        } else {
+                            e.path.contains("/tab-icon:")
+                        }
+                })
+                .collect::<Vec<_>>()
+        };
+        let before = icons(&rt);
+        assert_eq!(before.len(), 2);
+        for tab in ["split", "single", "split", "split", "single"] {
+            rt.update(|s, _| {
+                s.hosts[0]
+                    .model
+                    .views
+                    .get_mut("s")
+                    .unwrap()
+                    .active_window_id = Some(tab.into())
+            });
+            for frame in 0..18 {
+                rt.frame(1. / 60.);
+                let after = icons(&rt);
+                assert_eq!(after.len(), before.len());
+                for (a, b) in after.iter().zip(&before) {
+                    assert_eq!(a.path, b.path, "tab {tab}, frame {frame}");
+                    assert!(
+                        (a.opacity - 1.).abs() < 0.001,
+                        "tab {tab}, frame {frame}: opacity {}",
+                        a.opacity
+                    );
+                    assert!(
+                        (a.scale - b.scale).abs() < 0.001,
+                        "tab {tab}, frame {frame}: scale {}",
+                        a.scale
+                    );
+                    assert!(
+                        a.rect
+                            .iter()
+                            .zip(b.rect)
+                            .all(|(a, b)| (a - b).abs() < 0.001),
+                        "tab {tab}, frame {frame}: rect {:?} -> {:?}",
+                        b.rect,
+                        a.rect
+                    );
+                    let active = if sidebar {
+                        a.path.contains(&format!("sidebar-tab:0:s:{tab}/"))
+                    } else {
+                        a.path.contains(&format!("/tab-icon:{tab}/"))
+                    };
+                    let expected = crate::app::theme::rgb(if active {
+                        crate::app::theme::ink()
+                    } else {
+                        crate::app::theme::muted()
+                    });
+                    let actual = a.text_color.expect("icon tint");
+                    assert!(
+                        (actual.r - expected.r).abs() < 0.001
+                            && (actual.g - expected.g).abs() < 0.001
+                            && (actual.b - expected.b).abs() < 0.001,
+                        "tab {tab}, frame {frame}: icon tint should update without replaying a fade: {actual:?} vs {expected:?}"
+                    );
+                }
+            }
+        }
+        std::fs::remove_file(&rt.state.settings_path).ok();
+    }
 }
 
 #[test]

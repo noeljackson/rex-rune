@@ -292,11 +292,17 @@ fn window_row(s: &Workspace, index: usize, session: &str, tab: &rexrs::api::sess
         .on_secondary_press(move |s: &mut Workspace, p, _| {
             s.tab_menu(index, &menu_session, &menu_window, (p.x, p.y))
         })
-        .child(glyph(
-            program_icon(activity.program.as_deref()),
-            15.,
-            rgb(if active { ink() } else { muted() }),
-        ))
+        .child(
+            glyph(
+                program_icon(activity.program.as_deref()),
+                15.,
+                rgb(if active { ink() } else { muted() }),
+            )
+            .key(format!("sidebar-tab-icon:{index}:{session}:{id}"))
+            // Selection must not replay a tint fade on the program mark. Rune
+            // gives even very short springs a 100 ms text/icon-color duration.
+            .motion(rune::Spring::NONE),
+        )
         .child(
             text(label)
                 .font(if active { medium(12.5) } else { ui(12.5) })

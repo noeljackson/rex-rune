@@ -271,6 +271,9 @@ pub fn rename_key(s: &mut Workspace, ev: &KeyEvent, tx: &mut Tx) -> bool {
 }
 
 pub fn on_key(s: &mut Workspace, ev: &KeyEvent, tx: &mut Tx) -> bool {
+    if super::settings_navigation::on_key(s, ev, tx) {
+        return true;
+    }
     if ev.key == Key::Escape && s.tab_drag.is_some() {
         s.cancel_tab_drag();
         return true;

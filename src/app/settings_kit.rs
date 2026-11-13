@@ -26,7 +26,7 @@ use rune_kit::IconButton;
 pub const PANEL_WIDTH: f32 = 816.;
 pub const PANEL_HEIGHT: f32 = 680.;
 /// The section list beside the page.
-pub const NAV_WIDTH: f32 = 204.;
+pub const NAV_WIDTH: f32 = 214.;
 /// A row's inset from its card's edges; also the inset of a card's dividers, and of the
 /// headings and footnotes outside it.
 pub const INSET: f32 = 12.;

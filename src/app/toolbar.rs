@@ -186,11 +186,14 @@ fn tab_track(s: &Workspace) -> El {
                 tab_el = tab_el.radius(8.).hover(white(0.05));
             }
             let program = activity.program.as_deref();
-            let mut icon = el().key(format!("tab-icon:{id}")).child(glyph(
-                program_icon(program),
-                15.,
-                rgb(if active { ink() } else { muted() }),
-            ));
+            let mut icon = el().key(format!("tab-icon:{id}")).child(
+                glyph(
+                    program_icon(program),
+                    15.,
+                    rgb(if active { ink() } else { muted() }),
+                )
+                .motion(rune::Spring::NONE),
+            );
             if let Some(program) = program {
                 icon = icon.help(program.to_owned());
             }

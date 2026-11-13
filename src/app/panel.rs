@@ -264,6 +264,8 @@ impl std::fmt::Debug for Choice {
 pub enum SettingsSection {
     #[default]
     Interface,
+    Tabs,
+    Panes,
     Terminal,
     Notifications,
     Integrations,
@@ -273,19 +275,27 @@ pub enum SettingsSection {
     About,
 }
 impl SettingsSection {
+    pub fn root(self) -> Self {
+        match self {
+            Self::Tabs | Self::Panes => Self::Interface,
+            other => other,
+        }
+    }
     pub const ALL: [SettingsSection; 8] = [
         SettingsSection::Interface,
         SettingsSection::Terminal,
-        SettingsSection::Notifications,
-        SettingsSection::Integrations,
-        SettingsSection::Hosts,
         SettingsSection::Shortcuts,
+        SettingsSection::Integrations,
+        SettingsSection::Notifications,
+        SettingsSection::Hosts,
         SettingsSection::Updates,
         SettingsSection::About,
     ];
     pub fn title(self) -> &'static str {
         match self {
             SettingsSection::Interface => "Interface",
+            SettingsSection::Tabs => "Tabs",
+            SettingsSection::Panes => "Panes",
             SettingsSection::Terminal => "Terminal",
             SettingsSection::Notifications => "Notifications",
             SettingsSection::Integrations => "Integrations",
@@ -298,6 +308,8 @@ impl SettingsSection {
     pub fn key(self) -> &'static str {
         match self {
             SettingsSection::Interface => "interface",
+            SettingsSection::Tabs => "tabs",
+            SettingsSection::Panes => "panes",
             SettingsSection::Terminal => "terminal",
             SettingsSection::Notifications => "notifications",
             SettingsSection::Integrations => "integrations",

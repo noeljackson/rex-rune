@@ -204,7 +204,7 @@ pub fn actions(s: &Workspace, window: &Window, block: &str, width: f32, lit: boo
         cluster = cluster
             .child(button(
                 format!("pane-dock:{block}"),
-                &SPLIT_RIGHT,
+                &DOCK_PANE,
                 "Dock pane",
                 if dock {
                     hint("Dock pane", "pane.float", Value::Null)

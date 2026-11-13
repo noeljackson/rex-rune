@@ -460,13 +460,13 @@ icon!(
     SPLIT_RIGHT,
     "rex-split-right",
     r#"rect x="3" y="4.5" width="14" height="11" rx="2""#,
-    r#"path d="M10 4.5v11""#
+    r#"path d="M10 4.5v11M12 10h3m-2-2 2 2-2 2""#
 );
 icon!(
     SPLIT_DOWN,
     "rex-split-down",
     r#"rect x="3" y="4.5" width="14" height="11" rx="2""#,
-    r#"path d="M3 10h14""#
+    r#"path d="M3 10h14M10 11v3m-2-2 2 2 2-2""#
 );
 icon!(
     ZOOM,
@@ -520,6 +520,55 @@ icon!(
     r#"path d="M6.2 7.2A4 4 0 0 0 6 8.5c0 2.6-.9 3.9-1.75 4.75h9.25""#,
     r#"path d="M8.75 16h2.5""#,
     r#"path d="m4 4 12 12""#
+);
+
+// Shared pane and Settings symbols, authored on the same 20-point stroke grid.
+icon!(
+    FLOAT_PANE,
+    "rex-float-pane",
+    r#"rect x="3" y="4" width="11" height="8" rx="2""#,
+    r#"path d="M7 12v2a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-1""#
+);
+icon!(
+    DOCK_PANE,
+    "rex-dock-pane",
+    r#"rect x="3" y="4.5" width="14" height="11" rx="2""#,
+    r#"path d="M10 4.5v11m-3-8-2 2 2 2m-2-2h3""#
+);
+icon!(
+    SETTINGS_PALETTE,
+    "rex-settings-palette",
+    r#"path d="M10 3a7 7 0 1 0 0 14h1a2 2 0 0 0 1-3.7c-.7-.5-.4-1.8.6-1.8H14a3 3 0 0 0 3-3c0-3-3-5.5-7-5.5Z""#,
+    r#"path d="M6 9h.01M8 6h.01M12 6h.01M14 8h.01""#
+);
+icon!(
+    SETTINGS_BELL,
+    "rex-settings-bell",
+    r#"path d="M6 8a4 4 0 0 1 8 0c0 4 1 4 2 5H4c1-1 2-1 2-5Zm2 8h4M10 3V2""#
+);
+icon!(
+    SETTINGS_GLOBE,
+    "rex-settings-globe",
+    r#"circle cx="10" cy="10" r="7""#,
+    r#"ellipse cx="10" cy="10" rx="3" ry="7""#,
+    r#"path d="M3 10h14M4.5 5.5h11M4.5 14.5h11""#
+);
+icon!(
+    SETTINGS_PUZZLE,
+    "rex-settings-puzzle",
+    r#"path d="M4 4h4V3a2 2 0 0 1 4 0v1h4v4h1a2 2 0 0 1 0 4h-1v4h-4v-1a2 2 0 0 0-4 0v1H4v-4h1a2 2 0 0 0 0-4H4Z""#
+);
+icon!(
+    SETTINGS_UPDATE,
+    "rex-settings-update",
+    r#"circle cx="10" cy="10" r="7""#,
+    r#"path d="M10 5v9m-3-3 3 3 3-3""#
+);
+icon!(
+    SETTINGS_INFO,
+    "rex-settings-info",
+    r#"circle cx="10" cy="10" r="7""#,
+    r#"path d="M10 9v5m0-8h.01""#
 );
 
 // Programs a tab can show instead of the terminal glyph (`activity::program_icon`).
