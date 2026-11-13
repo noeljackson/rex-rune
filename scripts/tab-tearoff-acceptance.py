@@ -180,6 +180,24 @@ def run():
                 }
             )
         )
+        workspace.with_name("workspace.shortcuts.json").write_text(
+            json.dumps(
+                [
+                    {
+                        "keys": f"ctrl+alt+{index}",
+                        "action": "pane.split",
+                        "args": {"direction": direction},
+                    }
+                    for index, direction in enumerate(
+                        ["left", "right", "up", "down"], 1
+                    )
+                ]
+            )
+        )
+        if os.environ.get("REX_ACCEPTANCE_TABS") == "sidebar":
+            config = json.loads(workspace.read_text())
+            config.update(sidebar_open=True, vertical_tabs=True, sidebar_width=236)
+            workspace.write_text(json.dumps(config))
         if os.environ.get("REX_ACCEPTANCE_BACKEND") == "wayland":
             spec = importlib.util.spec_from_file_location(
                 "private_wayland", ROOT / "scripts/private-wayland.py"
@@ -320,10 +338,17 @@ def run():
                 ).splitlines()
             )
             width, height = int(geometry["WIDTH"]), int(geometry["HEIGHT"])
-            move(width / 2, (height + 52) / 2 + (61 if restore else 13))
+            left = 236 if os.environ.get("REX_ACCEPTANCE_TABS") == "sidebar" else 0
+            move((width + left) / 2, (height + 52) / 2 + (61 if restore else 13))
             desktop.x("click", 1)
             time.sleep(0.2)
 
+        # Control registration can precede the terminal stream/ownership claim.
+        # Wait before sending the first keystroke so cold startup cannot drop a
+        # prefix of the fixture command (failed input is never replayed).
+        focus(first)
+        wait(lambda: owner() == client_id(label), "source did not own its terminal")
+        wait(lambda: "$" in content(), "fixture shell prompt was not ready")
         desktop.type("printf 'TEAR_PID=%s\\n' \"$$\"")
         desktop.key("Return")
         wait(
@@ -331,7 +356,7 @@ def run():
             "fixture shell PID was not printed",
         )
         pid = int(re.search(r"TEAR_PID=(\d+)", content()).group(1))
-        start = Path(f"/proc/{pid}/stat").read_text().split()[21]
+        shell_start = Path(f"/proc/{pid}/stat").read_text().split()[21]
         expected_blocks = {block}
         expected_tabs = {tab}
 
@@ -339,26 +364,125 @@ def run():
             assert blocks() == expected_blocks, (
                 "detach/restore created or replaced a program"
             )
-            assert Path(f"/proc/{pid}/stat").read_text().split()[21] == start
+            assert Path(f"/proc/{pid}/stat").read_text().split()[21] == shell_start
             assert f"TEAR_PID={pid}" in content()
             assert {w["window_id"] for w in view()["windows"]} == expected_tabs
 
-        # A move within the tab strip is not a tear-off.
-        move(270, 26)
+        def capture_cursor(name):
+            (work / "captures").mkdir(exist_ok=True)
+            if os.environ.get("REX_ACCEPTANCE_BACKEND") == "wayland":
+                subprocess.run(
+                    [
+                        "grim",
+                        "-c",
+                        "-o",
+                        "HEADLESS-1",
+                        str(work / "captures" / f"{name}.png"),
+                    ],
+                    env=desktop.env,
+                    check=True,
+                    timeout=10,
+                )
+                return
+            import ctypes as C
+
+            class Image(C.Structure):
+                _fields_ = [
+                    ("x", C.c_short),
+                    ("y", C.c_short),
+                    ("width", C.c_ushort),
+                    ("height", C.c_ushort),
+                    ("xhot", C.c_ushort),
+                    ("yhot", C.c_ushort),
+                    ("serial", C.c_ulong),
+                    ("pixels", C.POINTER(C.c_ulong)),
+                ]
+
+            xlib = C.CDLL("libX11.so.6")
+            fixes = C.CDLL("libXfixes.so.3")
+            xlib.XOpenDisplay.argtypes = [C.c_char_p]
+            xlib.XOpenDisplay.restype = C.c_void_p
+            fixes.XFixesGetCursorImage.argtypes = [C.c_void_p]
+            fixes.XFixesGetCursorImage.restype = C.POINTER(Image)
+            xlib.XFree.argtypes = [C.c_void_p]
+            xlib.XCloseDisplay.argtypes = [C.c_void_p]
+            display = xlib.XOpenDisplay(desktop.env["DISPLAY"].encode())
+            assert display
+            pointer = fixes.XFixesGetCursorImage(display)
+            try:
+                im = pointer.contents
+                if name == "held-drag-preview":
+                    assert im.width >= 200 and im.height >= 180, "native drag preview missing"
+                else:
+                    assert im.width < 100 and im.height < 100, "drag preview cursor was not cleared"
+                (work / f"{name}-cursor.json").write_text(
+                    json.dumps(
+                        {
+                            "width": im.width,
+                            "height": im.height,
+                            "xhot": im.xhot,
+                            "yhot": im.yhot,
+                        }
+                    )
+                )
+                from PIL import Image as Pixels
+
+                rgba = bytes(
+                    v
+                    for i in range(im.width * im.height)
+                    for v in (
+                        (im.pixels[i] >> 16) & 255,
+                        (im.pixels[i] >> 8) & 255,
+                        im.pixels[i] & 255,
+                        (im.pixels[i] >> 24) & 255,
+                    )
+                )
+                Pixels.frombytes("RGBA", (im.width, im.height), rgba).save(
+                    work / "captures" / f"{name}.png"
+                )
+            finally:
+                xlib.XFree(pointer)
+                xlib.XCloseDisplay(display)
+
+        sidebar = os.environ.get("REX_ACCEPTANCE_TABS") == "sidebar"
+        start = (100, 210) if sidebar else (270, 26)
+        finish = (400, 220) if sidebar else (300, 160)
+        if os.environ.get("REX_ACCEPTANCE_BACKEND") != "wayland":
+            # Beyond the native source, near the private display's bottom-right.
+            # The expanded view must still put its pane controls on screen.
+            finish = (1500, 980)
+        # A moved drag released inside the source creates no view.
+        move(*start)
         desktop.x("mousedown", 1)
-        move(290, 26)
+        move(start[0] + 20, start[1])
         desktop.x("mouseup", 1)
         time.sleep(0.2)
         assert len(windows()) == 1
-        move(270, 26)
+        # Escape cancels a moved drag even when the pointer returns to its row.
+        move(*start)
         desktop.x("mousedown", 1)
-        move(300, 160)
+        move(*finish)
+        desktop.key("Escape")
+        move(*start)
+        desktop.x("mouseup", 1)
+        time.sleep(0.2)
+        assert len(windows()) == 1, "Escape did not cancel the drag"
+        capture_cursor("cancelled-drag-cursor")
+        preserved()
+        move(*start)
+        desktop.x("mousedown", 1)
+        move(*finish)
+        time.sleep(0.6)
+        assert len(windows()) == 1, "terminal view opened before release"
+        preserved()
+        capture_cursor("held-drag-preview")
         desktop.x("mouseup", 1)
         wait(
             lambda: len(windows()) == 2,
             "dragging a tab out did not open a native window",
         )
         second = next(w for w in windows() if w != first)
+        capture_cursor("released-drag-cursor")
         second_label = base_label + "/window-2"
         wait(
             lambda: any(
@@ -408,6 +532,85 @@ def run():
             "PASS real tab tear-off, last-tab placeholder, hidden source input/sizing and native Go activation",
             flush=True,
         )
+        label = second_label
+        for action, args in [
+            ("client.tab.new", None),
+            ("client.tab.next", None),
+            ("client.sidebar.toggle", None),
+            ("session.select", {"session_id": sid}),
+        ]:
+            perform(action, args, error="own tab")
+        preserved()
+
+        def positions(node, rect=(0.0, 0.0, 1.0, 1.0)):
+            if node.get("block_id"):
+                return {node["block_id"]: rect}
+            split = node.get("split")
+            assert split, node
+            x, y, w, h = rect
+            r = split["ratio"]
+            if split["direction"] == "horizontal":
+                a = (x, y, w * r, h)
+                b = (x + w * r, y, w * (1 - r), h)
+            else:
+                a = (x, y, w, h * r)
+                b = (x, y + h * r, w, h * (1 - r))
+            return positions(split["before"], a) | positions(split["after"], b)
+
+        def click_header_split(direction):
+            geometry = dict(
+                line.split("=", 1)
+                for line in desktop.x(
+                    "getwindowgeometry", "--shell", second
+                ).splitlines()
+            )
+            width = int(geometry["WIDTH"])
+            desktop.x(
+                "mousemove",
+                "--window",
+                second,
+                width - 140 + ["left", "right", "up", "down"].index(direction) * 24,
+                18,
+            )
+            desktop.x("click", 1)
+
+        for index, direction in enumerate(["left", "right", "up", "down"], 1):
+            api("session.focus_block", session_id=sid, block_id=block)
+            time.sleep(0.3)
+            before = blocks()
+            if index == 1:
+                click_header_split(direction)
+            else:
+                desktop.key(f"ctrl+alt+{index}")
+            wait(
+                lambda: len(blocks()) == len(before) + 1,
+                f"split {direction} did not create one pane",
+            )
+            new = (blocks() - before).pop()
+            tiled = next(
+                l
+                for w in view()["windows"]
+                for l in w["layers"]
+                if l["kind"] == "tiled"
+            )
+            xy = positions(tiled["layout"])
+            x, y, w, h = xy[block]
+            nx, ny, nw, nh = xy[new]
+            assert {
+                "left": nx + nw <= x + 1e-6,
+                "right": nx >= x + w - 1e-6,
+                "up": ny + nh <= y + 1e-6,
+                "down": ny >= y + h - 1e-6,
+            }[direction], (direction, xy)
+            expected_blocks = blocks()
+            preserved()
+        api("session.focus_block", session_id=sid, block_id=block)
+        time.sleep(0.3)
+        desktop.capture(second, "isolated-terminal-four-splits")
+        print(
+            "PASS terminal-only navigation guards and new left/right/up/down panes preserve the original program",
+            flush=True,
+        )
         focus(first)
         placeholder_click(restore=True)
         wait(
@@ -431,7 +634,7 @@ def run():
             flush=True,
         )
         # The tab menu follows the same path; disabled left/right rows are skipped.
-        move(270, 26)
+        move(*start)
         desktop.x("click", 3)
         desktop.key("Down")
         desktop.key("Down")
@@ -466,35 +669,12 @@ def run():
         time.sleep(1.7)
         perform("client.tab.move_to_new_window")
         assert len(windows()) == 2
-        # Restoration preserves an owner that has navigated to unrelated work.
         label = base_label + "/window-4"
-        perform("client.tab.new")
-        expected_blocks = blocks()
-        expected_tabs = {w["window_id"] for w in view()["windows"]}
-        assert len(expected_blocks) == 2 and block in expected_blocks
-        fourth = next(w for w in windows() if w != first)
-        focus(first)
-        placeholder_click()
-        wait(
-            lambda: focused() == fourth,
-            "Go after navigation did not activate the owner",
-        )
-        desktop.type("printf 'GO_AFTER_NAVIGATION\\n'")
-        desktop.key("Return")
-        wait(
-            lambda: "\nGO_AFTER_NAVIGATION\n" in content(),
-            "Go did not select the original tab after destination navigation",
-        )
-        preserved()
-        focus(first)
-        placeholder_click(restore=True)
-        time.sleep(0.5)
-        assert len(windows()) == 2, (
-            "Restore closed a destination showing unrelated work"
-        )
+        perform("client.tab.new", error="own tab")
+        perform("client.tab.goto", {"index": 1}, error="own tab")
         preserved()
         print(
-            "PASS Restore preserves a destination that has navigated to another tab",
+            "PASS detached terminal refuses tab creation/navigation without changing its server tab",
             flush=True,
         )
         label = base_label

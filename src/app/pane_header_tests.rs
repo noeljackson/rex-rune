@@ -90,9 +90,11 @@ fn header_buttons_act_on_their_own_pane_and_close_asks_by_name() {
     let _ = requests(&host);
 
     // The unfocused pane's buttons name that pane.
-    for (button, direction) in [
-        ("pane-split-right:block:c", "horizontal"),
-        ("pane-split-down:block:c", "vertical"),
+    for (button, direction, side) in [
+        ("pane-split-left:block:c", "horizontal", "before"),
+        ("pane-split-right:block:c", "horizontal", "after"),
+        ("pane-split-up:block:c", "vertical", "before"),
+        ("pane-split-down:block:c", "vertical", "after"),
     ] {
         click(&mut rt, button);
         let sent = requests(&host);
@@ -100,7 +102,7 @@ fn header_buttons_act_on_their_own_pane_and_close_asks_by_name() {
         assert_eq!(sent[0].0, "session.new_split");
         assert_eq!(sent[0].2["anchor_id"], "block:c", "{button}");
         assert_eq!(sent[0].2["direction"], direction, "{button}");
-        assert_eq!(sent[0].2["side"], "after");
+        assert_eq!(sent[0].2["side"], side);
         assert_eq!(sent[0].2["cwd_from"], "block:c");
     }
 

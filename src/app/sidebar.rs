@@ -246,6 +246,7 @@ fn window_row(s: &Workspace, index: usize, session: &str, tab: &rexrs::api::sess
     let (target_session, target_window) = (session.to_owned(), id.to_owned());
     let (rename_session, rename_window) = (session.to_owned(), id.to_owned());
     let (menu_session, menu_window) = (session.to_owned(), id.to_owned());
+    let drag_target = s.tab_target(index, session, id);
     let shown = s.tab_activity_shown(index, id);
     let quiet = s.tab_muted(index, id);
     let mut row = row()
@@ -270,6 +271,9 @@ fn window_row(s: &Workspace, index: usize, session: &str, tab: &rexrs::api::sess
         .help_when_truncated(label.clone())
         .pointer_buttons([PointerButton::Middle])
         .on_press_tx(move |s: &mut Workspace, tx: &mut Tx| {
+            if tx.button() == PointerButton::Primary && s.tab_press_suppressed {
+                return;
+            }
             // Middle-click closes, behind the same confirmation as Close tab.
             if tx.button() == PointerButton::Middle {
                 if let Some(target) = s.tab_target(index, &target_session, &target_window) {
@@ -301,6 +305,14 @@ fn window_row(s: &Workspace, index: usize, session: &str, tab: &rexrs::api::sess
                 .grow(1.)
                 .min_w(0.),
         );
+    if let Some(target) = drag_target {
+        row = row
+            .no_window_drag()
+            .on_drag(move |s: &mut Workspace, gesture, tx| {
+                s.drag_sidebar_tab(&target, gesture, tx)
+            });
+    }
+
     if active {
         row = row
             .fill(white(0.11))

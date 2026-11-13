@@ -137,6 +137,17 @@ impl WindowHandle {
     pub fn hide(&self) { self.set_visible(false); }
     /// Focus/activate an already-visible window, restoring it if minimized. Wayland requests attention.
     pub fn focus(&self) { self.send(WakeEvent::Focus); }
+    /// Show a frozen thumbnail under the held pointer, using this window's rendered
+    /// elements. `content` is optional when the dragged item has no rendered content.
+    /// The image uses the native cursor, so it follows an implicit pointer grab outside
+    /// the source on Wayland and X11. Release, cancellation or blur must clear it.
+    pub fn drag_preview(&self, content: Option<String>, heading: String) {
+        self.send(move |slot| WakeEvent::DragPreview(slot, Some((content, heading))));
+    }
+    pub fn clear_drag_preview(&self) {
+        self.send(|slot| WakeEvent::DragPreview(slot, None));
+    }
+
     /// Activate this window from a user interaction in `source`. Wayland obtains a fresh
     /// activation token from the source surface; other platforms use normal activation.
     /// The compositor retains the final focus decision. Requests never recreate a closed target.

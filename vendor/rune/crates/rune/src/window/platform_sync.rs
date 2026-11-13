@@ -40,6 +40,13 @@ impl Win {
     /// The runtime's cursor while the pointer is in the window, the arrow once it leaves.
     /// `Hidden` needs focus, so it can't outlive the window being active.
     pub(super) fn apply_cursor<S>(&mut self, rt: &Runtime<S>, focused: bool) {
+        if let Some(cursor) = &self.drag_cursor {
+            if self.window.has_focus() {
+                self.window.set_cursor(cursor.clone());
+                return;
+            }
+            self.clear_drag_preview();
+        }
         let want = match rt.cursor() { crate::el::Cursor::Hidden if !focused => crate::el::Cursor::Default, c => c };
         self.cursor.apply(&self.window, want, rt.pointer().is_some());
     }

@@ -33,7 +33,7 @@ python3 scripts/tab-tearoff-acceptance.py
 | View consent | Off by default, eight-action allowed set, host isolation, typing and popup guards, removed targets, no shell creation. The private SSH transport runs when a local sshd is available; its result is reported separately. |
 | Workspace consent | Acknowledged creation/layout changes, old View consent preserved, local close confirmation/cancellation/expiry, clipboard/settings/system refusal. |
 | Desktop windows | Independent CLI labels and tabs, real keyboard targeting, window-local dialogs, shared preferences, detach without replacement blocks, original and last-window closure. |
-| Tab tear-off | Real pointer release, last-tab placeholder, Go keyboard focus, Restore, hidden input/sizing, dedicated versus unrelated destinations, tab-menu/CLI paths and native lifetime; original block IDs, PID/start time and output survive. |
+| Tab tear-off | Toolbar/sidebar pointer release and native preview, terminal-only chrome and navigation refusal, all four new split directions, last-tab placeholder, Go keyboard focus, Restore, hidden input/sizing, tab-menu/CLI paths and native lifetime; original block IDs, PID/start time and output survive. |
 | Floating panes | Original block ID/shell PID/start time/output survive moves, resize, hide/restore, reconnect, docking and native-view reattachment; stacking/input, cross-tab refusal, external changes and explicit source-tab destruction. |
 
 Desktop, floating and tear-off checks also run on a private native Wayland compositor at
@@ -50,6 +50,9 @@ REX_ACCEPTANCE_BACKEND=wayland REX_ACCEPTANCE_SCALE=1.5 \
 REX_ACCEPTANCE_BACKEND=wayland REX_ACCEPTANCE_SCALE=1.5 \
   python3 scripts/tab-tearoff-acceptance.py
 ```
+
+Set `REX_ACCEPTANCE_TABS=sidebar` for the tear-off script to exercise sidebar dragging.
+X11 preview capture also requires Pillow and libXfixes.
 
 Protocol/state tests cover revoked or expired grants, changed connection epochs,
 disconnects after dispatch without replay, acknowledged replies, negotiated API

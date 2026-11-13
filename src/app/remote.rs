@@ -90,6 +90,12 @@ impl Workspace {
                 ),
             ));
         }
+        if !self.terminal_action_allowed(&request.action) {
+            return Err(Outcome::error(
+                "refused",
+                "This terminal window stays on its own tab; use a main workspace window for navigation or new tabs.",
+            ));
+        }
         let selecting = request.action == actions::SELECT_SESSION;
         let model = &self.hosts[host].model;
         let refused =

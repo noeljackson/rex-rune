@@ -603,6 +603,10 @@ pub fn run(s: &mut Workspace, name: &str, args: &Value, tx: &mut Tx) -> bool {
     let Some(spec) = find(name).filter(|spec| spec.accepts(args)) else {
         return false;
     };
+    if !s.terminal_action_allowed(name) {
+        s.inform("This terminal window stays on its own tab. Use the main window to navigate or create tabs.");
+        return true;
+    }
     if s.detached_here() && name.starts_with("pane.") {
         s.inform(
             "This tab is open in another window. Use Go to window or Restore to this window first.",

@@ -390,3 +390,160 @@ fn a_queued_restore_close_rechecks_ownership_dialogs_and_dedication() {
         "a destination used for other work stays open"
     );
 }
+
+#[test]
+fn a_detached_terminal_has_pane_controls_and_no_workspace_navigation() {
+    let (_, mut child, _, _) = pair();
+    child.desktop.as_mut().unwrap().terminal = Some(key(&child));
+    child.sidebar.set_open(true);
+    child.settings.vertical_tabs = true;
+    let rt = frame(child);
+    assert!(rect(&rt, "terminal-window-bar")[2] > 0.);
+    assert!(rect(&rt, "close-terminal-window")[2] > 0.);
+    for direction in ["left", "right", "up", "down"] {
+        assert!(rect(&rt, &format!("pane-split-{direction}:block:a"))[2] > 0.);
+    }
+    assert!(!rt.elements().iter().any(|e| !e.exiting
+        && e.key.as_deref().is_some_and(|k| {
+            k == "toolbar" || k == "tabs" || k == "identity" || k.starts_with("sidebar-tab:")
+        })));
+}
+
+#[test]
+fn detached_navigation_is_consumed_locally_and_cannot_create_another_tab() {
+    use crate::app::{actions, navigation::Visit, panel::Intent};
+    let (_, mut child, _, _) = pair();
+    child.desktop.as_mut().unwrap().terminal = Some(key(&child));
+    let (sent, rx) = flume::unbounded();
+    child.hosts[0].connection.commands = sent;
+    let original = child.model().view().unwrap().clone();
+    for action in [
+        "client.tab.new",
+        "client.tab.next",
+        "client.tab.previous",
+        "session.new",
+        "session.switch",
+        "client.sidebar.toggle",
+    ] {
+        assert!(!child.terminal_action_allowed(action));
+        assert!(actions::run(
+            &mut child,
+            action,
+            &Value::Null,
+            &mut Tx::default()
+        ));
+    }
+    child.perform(Intent::NewWindow, &mut Tx::default());
+    child.perform(Intent::CreateOn(0, None), &mut Tx::default());
+    child.perform(Intent::ChooseHost(String::new()), &mut Tx::default());
+    assert!(child.panel.is_none());
+    child.navigate_to(
+        Visit {
+            host: child.hosts[0].id,
+            session: "s".into(),
+            window: Some("other".into()),
+        },
+        &mut Tx::default(),
+    );
+    assert!(child.navigation.pending.is_none());
+    assert_eq!(child.model().view().unwrap(), &original);
+    assert!(rx.try_iter().next().is_none());
+    for direction in ["left", "right", "up", "down"] {
+        assert!(child.terminal_action_allowed(&format!("pane.split.{direction}")));
+    }
+}
+
+#[test]
+fn detached_remote_navigation_replies_once_without_changing_the_terminal() {
+    let (_, mut child, _, _) = pair();
+    child.desktop.as_mut().unwrap().terminal = Some(key(&child));
+    child.settings.hosts[0].set_remote_access(RemoteAccess::Workspace);
+    let (sent, rx) = flume::unbounded();
+    child.hosts[0].connection.commands = sent;
+    let original = child.model().view().unwrap().clone();
+    for (action, args) in [
+        ("client.tab.new", Value::Null),
+        ("client.tab.next", Value::Null),
+        ("session.select", json!({"session_id":"other"})),
+        ("client.sidebar.toggle", Value::Null),
+    ] {
+        let pending = Pending {
+            epoch: child.hosts[0].model.connection_epoch,
+            received: Instant::now(),
+            request: serde_json::from_value(
+                json!({"call_id":"isolated", "action":action, "args":args}),
+            )
+            .unwrap(),
+        };
+        child.remote_perform(0, pending, &mut Tx::default());
+        let commands: Vec<_> = rx.try_iter().collect();
+        assert_eq!(commands.len(), 1, "{action} must send only a reply");
+        let HostCommand::PerformReply { outcome, .. } = commands.into_iter().next().unwrap() else {
+            panic!()
+        };
+        assert!(matches!(outcome, Outcome::Error { code, .. } if code == "refused"));
+        assert_eq!(child.model().view().unwrap(), &original);
+        assert!(child.navigation.pending.is_none());
+    }
+}
+
+#[test]
+fn removal_of_the_owned_tab_never_shows_or_targets_an_unrelated_terminal() {
+    let (_, mut child, _, _) = pair();
+    child.desktop.as_mut().unwrap().terminal = Some(key(&child));
+    let view = child.hosts[0].model.views.get_mut("s").unwrap();
+    view.windows[0].window_id = Some("other".into());
+    view.active_window_id = Some("other".into());
+    assert!(!child.terminal_contents_available());
+    assert!(child.focused_block().is_none());
+    assert!(child.visible_terminal_keys().is_empty());
+    assert!(!child.terminal_action_allowed("pane.split.right"));
+    assert!(!child.terminal_action_allowed("client.tab.close"));
+    let rt = frame(child);
+    assert!(rect(&rt, "terminal-unavailable")[2] > 0.);
+    assert!(
+        !rt.elements()
+            .iter()
+            .any(|e| !e.exiting && e.key.as_deref() == Some("panes"))
+    );
+}
+
+#[test]
+fn sidebar_tearoff_captures_another_cached_session_without_switching_the_source() {
+    let (mut source, _, _, _) = pair();
+    source.sidebar.set_open(true);
+    source.settings.vertical_tabs = true;
+    let mut other = source.model().view().unwrap().clone();
+    other.session_id = Some("other-session".into());
+    other.windows[0].window_id = Some("other-tab".into());
+    other.active_window_id = Some("other-tab".into());
+    source.hosts[0]
+        .model
+        .sessions
+        .push(rexrs::api::session::Session {
+            session_id: "other-session".into(),
+            label: "other".into(),
+        });
+    source.hosts[0]
+        .model
+        .views
+        .insert("other-session".into(), other);
+    let mut rt = frame(source);
+    let [x, y, w, h] = rect(&rt, "sidebar-tab:0:other-session:other-tab");
+    rt.pointer_down(x + w / 2., y + h / 2.);
+    rt.pointer_move(x + w / 2. + 40., y + h / 2.);
+    rt.frame(1. / 60.);
+    assert!(rt.state.tab_drag.is_some());
+    assert_eq!(rt.state.model().selected.as_deref(), Some("s"));
+    rt.key(KeyEvent {
+        key: Key::Escape,
+        mods: Mods::default(),
+    });
+    rt.frame(1. / 60.);
+    assert!(rt.state.tab_drag.is_none());
+    rt.pointer_up(x + w / 2. + 40., y + h / 2.);
+    rt.frame(1. / 60.);
+    assert!(rt.state.desktop.as_ref().unwrap().local_opening.is_none());
+    assert!(rt.state.navigation.pending.is_none());
+    assert_eq!(rt.state.model().selected.as_deref(), Some("s"));
+}

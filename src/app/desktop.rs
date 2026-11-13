@@ -90,6 +90,7 @@ pub struct WindowState {
     local_opening: Option<detached::LocalOpening>,
     placeholder: bool,
     dedicated: Option<detached::TabKey>,
+    terminal: Option<detached::TabKey>,
     pub close_reply: Option<(HostId, u64, String)>,
 }
 
@@ -135,6 +136,7 @@ impl WindowState {
             local_opening: None,
             placeholder: false,
             dedicated: None,
+            terminal: None,
             close_reply: None,
         }
     }
@@ -266,7 +268,7 @@ impl Workspace {
         let Some(d) = &self.desktop else {
             return;
         };
-        let held = self.detached_here();
+        let held = self.detached_here() || !self.terminal_contents_available();
         let mut shared = d.shared.lock().expect("desktop");
         if self.window_focused {
             shared.foreground = Some(Foreground {
@@ -515,14 +517,13 @@ impl Workspace {
             }
             return;
         }
-        self.open_desktop_target(if detach { target } else { None }, remote, None, tx);
+        self.open_desktop_target(if detach { target } else { None }, remote, tx);
     }
 
     pub(super) fn open_desktop_target(
         &mut self,
         target: Option<super::tabs::TabTarget>,
         remote: Option<(usize, Pending)>,
-        position: Option<(i32, i32)>,
         tx: &mut Tx,
     ) {
         let Some(desktop) = &self.desktop else {
@@ -603,6 +604,7 @@ impl Workspace {
         };
         let mut child = WindowState::new(shared, id);
         child.dedicated = key.clone();
+        child.terminal = key.clone();
         let status = child.status.clone();
         let native = rune::open_window(window(
             options,
@@ -612,9 +614,8 @@ impl Workspace {
             tab,
             remote.is_some(),
         ));
-        if let Some(position) = position {
-            native.set_position(position);
-        }
+        // Let the window manager place the expanded view. Using the drop point as
+        // its top-left corner can put the pane controls beyond the screen edge.
         if let Some((host, pending)) = remote {
             self.desktop.as_mut().unwrap().pending = Some(Opening {
                 host: self.hosts[host].id,

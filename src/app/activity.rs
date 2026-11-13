@@ -241,6 +241,7 @@ impl Workspace {
         let model = &self.hosts[index].model;
         self.window_focused
             && !self.detached_here()
+            && self.terminal_contents_available()
             && index == self.active
             && model.selected.as_deref() == Some(session)
             && model

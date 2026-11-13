@@ -142,6 +142,7 @@ impl<S: 'static> Host<S> {
                 self.shell(event_loop);
             }
             WakeEvent::Focus(_) => self.focus(event_loop),
+            WakeEvent::DragPreview(_, keys) => self.set_drag_preview(event_loop, keys),
             WakeEvent::ActivateFrom(_, target) => {
                 if target.window().is_err() { return; }
                 #[cfg(all(unix, not(target_os = "macos"), not(target_os = "ios"), not(target_os = "android")))]
@@ -222,6 +223,7 @@ impl<S: 'static> Host<S> {
         if matches!(&event, WindowEvent::ScaleFactorChanged { .. }) { self.apply_placement(event_loop); }
         match event {
             WindowEvent::Focused(focused) => {
+                if !focused && let Some(w) = &mut self.win { w.clear_drag_preview(); }
                 // winit queues an initial false from its hidden source window before
                 // adoption. It must not dismiss an already-key panel on first open.
                 #[cfg(target_os = "macos")]
@@ -372,6 +374,7 @@ impl<S: 'static> Host<S> {
                 }
             }
             WindowEvent::Focused(focused) => {
+                if !focused { l.clear_drag_preview(); }
                 rt.set_system_reduced_motion(crate::platform::preferences::reduced_motion());
                 rt.set_full_keyboard_access(crate::platform::preferences::full_keyboard_access());
                 rt.set_system_scroll_bars_state(crate::platform::scroll_bars::reread().with_override(self.args.scroll_bars));
@@ -502,6 +505,7 @@ impl<S: 'static> Host<S> {
                 l.request_redraw();
             }
             WindowEvent::MouseInput { state, button: MouseButton::Left, .. } => {
+                if state == ElementState::Released { l.clear_drag_preview(); }
                 if state == ElementState::Pressed {
                     self.control_click = cfg!(target_os = "macos") && self.mods.control_key();
                 }

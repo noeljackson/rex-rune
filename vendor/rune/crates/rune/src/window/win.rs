@@ -79,6 +79,7 @@ pub(super) struct Win {
     /// When a hidden launcher renders the changes it hasn't yet.
     pub(super) hidden_pace: HiddenPace,
     pub(super) cursor: crate::cursor::os::OsCursor,
+    pub(super) drag_cursor: Option<winit::window::CustomCursor>,
     pub(super) alpha: Option<crate::render::surface_alpha::AlphaSurface>,
     /// The frame a due timer asked for, until the window draws it, and whether only it asked
     /// (`TimerFrame`).

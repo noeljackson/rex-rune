@@ -6,7 +6,7 @@
 
 ### Added
 
-- **Tab tear-off:** drag a toolbar tab into its own native desktop window, or use its menu/Commands action. The original tab shows Go to window and Restore to this window, including the last tab. Restore and native-window closure preserve the original programs and output; unrelated work in the destination stays open. Wayland Go uses a local input activation token. Go/Restore are bindable local-only actions.
+- **Tab tear-off:** drag a toolbar or sidebar tab through a small pointer preview into its own isolated terminal window, or use its menu/Commands action. The original tab shows Go to window and Restore to this window, including the last tab. Restore and native-window closure preserve the original programs and output; detached views have no sidebar or tab navigation. Pane controls offer new splits left, right, up and down. Combining existing terminals by dragging is deferred. Wayland Go uses a local input activation token. Go/Restore are bindable local-only actions.
 
 - **Floating panes:** float/dock existing programs, explicitly create floating terminals, move/resize/raise/lower, and minimize/restore one or all layers. Headers provide drag, Dock and Minimize controls; corner handles resize and bottom capsules restore. Bindable actions accept Workspace remote control and acknowledge server results. Geometry, block IDs and minimized state remain server-owned across reconnects and view closure. API 12 requires an existing tiled docking anchor.
 

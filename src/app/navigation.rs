@@ -229,6 +229,10 @@ impl Workspace {
         timeout: Duration,
         tx: &mut Tx,
     ) {
+        if !self.terminal_visit_allowed(&visit) {
+            self.inform("This terminal window stays on its own tab.");
+            return;
+        }
         self.navigation.serial += 1;
         let now = Instant::now();
         self.navigation.pending = Some(Pending {

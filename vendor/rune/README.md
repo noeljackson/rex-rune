@@ -15,6 +15,15 @@ paths so the whole dependency graph sees a single `rune`. Nothing outside the ve
 
 ## Changes
 
+- `WindowHandle::drag_preview(content_key, heading_key)` captures rendered elements
+  once into a bounded 256 × 224 pt native cursor thumbnail. It follows the existing
+  pointer grab beyond the source on X11 and Wayland, without a second toplevel or
+  client-positioned Wayland window. Missing content produces a heading-only card.
+  The resource belongs to one gesture, respects display scale, and clears on release,
+  blur, explicit `clear_drag_preview()` or window closure. Normal cursor caching is
+  invalidated on clear. Rex's private pointer checks capture the actual cursor on
+  X11 and at 150% Wayland scale and verify release opens only the captured tab.
+
 - `WindowHandle::focus_from(source)` requests cross-window activation from a local user
   interaction. On Wayland a private queue on winit's display observes this surface's
   pointer/key presses and requests an XDG token with their real seat and serial (winit
