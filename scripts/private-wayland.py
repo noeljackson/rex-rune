@@ -82,7 +82,13 @@ class Desktop:
             assert app.poll() is None and time.monotonic() < deadline, "Wayland app did not open"
             time.sleep(.05)
         self.focused = self._windows()[0]
-        time.sleep(1.5)
+        # Creating the toplevel precedes its first presented buffer and seat focus.
+        # Cold GPU startup can take longer than a fixed delay; do not drive Alt-Tab
+        # or send fixture input until the compositor has actually focused it.
+        deadline = time.monotonic() + 12
+        while self._focused_window() != self.focused:
+            assert app.poll() is None and time.monotonic() < deadline, "Wayland app did not receive initial focus"
+            time.sleep(.05)
         return app, self.focused
 
     def drive(self, *lines):
