@@ -239,6 +239,8 @@ impl<S: 'static> Host<S> {
     }
 
     fn about_to_wait_in_turn(&mut self, event_loop: &ActiveEventLoop) -> bool {
+        #[cfg(all(unix, not(target_os = "macos"), not(target_os = "ios"), not(target_os = "android")))]
+        if let Some(a) = self.win.as_mut().and_then(|w| w.native.activator.as_mut()) { a.dispatch(); }
         #[cfg(target_os = "macos")]
         self.fn_key();
         self.flush_files(event_loop);

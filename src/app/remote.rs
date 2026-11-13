@@ -92,45 +92,48 @@ impl Workspace {
         }
         let selecting = request.action == actions::SELECT_SESSION;
         let model = &self.hosts[host].model;
-        let refused = if self.drag.is_some() || self.floating_drag.is_some() {
-            Some("A layout drag is in progress")
-        } else if self.panel.is_some() {
-            Some("A dialog or popup is open")
-        } else if field_focused {
-            Some("A text field has focus")
-        } else if self.bindings.sequence.depth > 0 {
-            Some("A key sequence is pending")
-        } else if !selecting && self.active != host {
-            Some("This host is not on screen")
-        } else if request.session_id.as_ref().is_some_and(|id| {
-            if selecting {
-                request.args["session_id"].as_str() != Some(id.as_str())
+        let refused =
+            if self.drag.is_some() || self.floating_drag.is_some() || self.tab_drag.is_some() {
+                Some("A layout drag is in progress")
+            } else if self.detached_here() && request.action.starts_with("pane.") {
+                Some("This tab is open in another window")
+            } else if self.panel.is_some() {
+                Some("A dialog or popup is open")
+            } else if field_focused {
+                Some("A text field has focus")
+            } else if self.bindings.sequence.depth > 0 {
+                Some("A key sequence is pending")
+            } else if !selecting && self.active != host {
+                Some("This host is not on screen")
+            } else if request.session_id.as_ref().is_some_and(|id| {
+                if selecting {
+                    request.args["session_id"].as_str() != Some(id.as_str())
+                } else {
+                    model.selected.as_ref() != Some(id)
+                }
+            }) {
+                Some("The requested session is not on screen")
+            } else if request
+                .block_id
+                .as_deref()
+                .is_some_and(|id| model.focused() != Some(id))
+            {
+                Some("The requested pane is not focused")
+            } else if navigation && self.last_keypress.is_some_and(|at| at.elapsed() < TYPING) {
+                Some("The person is typing; try again after a pause")
+            } else if self.navigation.pending.is_some()
+                || self.remote_navigation.is_some()
+                || self.remote_operation.is_some()
+                || self.remote_approval.is_some()
+                || self
+                    .desktop
+                    .as_ref()
+                    .is_some_and(|d| d.pending.is_some() || d.close_reply.is_some())
+            {
+                Some("Another navigation is still in progress")
             } else {
-                model.selected.as_ref() != Some(id)
-            }
-        }) {
-            Some("The requested session is not on screen")
-        } else if request
-            .block_id
-            .as_deref()
-            .is_some_and(|id| model.focused() != Some(id))
-        {
-            Some("The requested pane is not focused")
-        } else if navigation && self.last_keypress.is_some_and(|at| at.elapsed() < TYPING) {
-            Some("The person is typing; try again after a pause")
-        } else if self.navigation.pending.is_some()
-            || self.remote_navigation.is_some()
-            || self.remote_operation.is_some()
-            || self.remote_approval.is_some()
-            || self
-                .desktop
-                .as_ref()
-                .is_some_and(|d| d.pending.is_some() || d.close_reply.is_some())
-        {
-            Some("Another navigation is still in progress")
-        } else {
-            None
-        };
+                None
+            };
         if let Some(reason) = refused {
             return Err(Outcome::error(
                 "refused",

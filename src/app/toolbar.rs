@@ -126,6 +126,7 @@ fn tab_track(s: &Workspace) -> El {
                 tab_word(&activity, s.unseen(&id), s.bell_on(s.active, &id)).filter(|_| shown);
             let (press_id, rename_id, menu_id) = (id.clone(), id.clone(), id.clone());
             let menu_session = session.clone();
+            let drag_target = s.tab_target(s.active, &session, &id);
             let mut tab_el = row()
                 .key(format!("tab:{id}"))
                 .role("tab")
@@ -159,6 +160,13 @@ fn tab_track(s: &Workspace) -> El {
                 .on_secondary_press(move |s: &mut Workspace, p, _| {
                     s.tab_menu(s.active, &menu_session, &menu_id, (p.x, p.y))
                 });
+            if let Some(target) = drag_target {
+                tab_el = tab_el
+                    .no_window_drag()
+                    .on_drag(move |s: &mut Workspace, gesture, tx| {
+                        s.drag_tab(&target, gesture, tx)
+                    });
+            }
             if active {
                 tab_el = tab_el.child(
                     el().pin(Some(0.), Some(0.), Some(0.), Some(0.))

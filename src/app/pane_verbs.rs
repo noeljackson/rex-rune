@@ -39,6 +39,9 @@ impl Workspace {
     /// pane (or a zoomed pane to restore), as the header's button does. Every other row
     /// always can.
     pub fn pane_verb_available(&self, target: &PaneTarget, action: PaneAction) -> bool {
+        if self.pane_in_detached_window(target) {
+            return false;
+        }
         let term = self.pane_term(target);
         match action {
             PaneAction::Copy => term.is_some_and(Term::has_selection),

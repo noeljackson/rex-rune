@@ -41,6 +41,7 @@ pub enum TabAction {
     MoveLeft,
     /// One place toward its end.
     MoveRight,
+    Detach,
     /// A new tab in the target's session.
     New,
     CloseOthers,
@@ -260,6 +261,12 @@ impl Workspace {
                 connected && place + 1 < count,
                 1,
             ),
+            (
+                "Move tab to new desktop window",
+                TabAction::Detach,
+                connected && self.can_detach_tab(target),
+                1,
+            ),
             ("New tab", TabAction::New, connected, 2),
             (
                 "Close other tabs…",
@@ -397,6 +404,9 @@ impl Workspace {
         };
         let host = self.settings.hosts[target.host].label.clone();
         match action {
+            TabAction::Detach => {
+                self.open_desktop_target(Some(target), None, None, tx);
+            }
             TabAction::Rename => {
                 let name = target.name.clone();
                 self.open_panel(

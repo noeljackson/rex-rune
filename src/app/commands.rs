@@ -901,7 +901,25 @@ impl Workspace {
                 G,
                 "Move tab to new desktop window",
                 "client.tab.move_to_new_window",
+            )
+            .enabled(
+                self.active_tab()
+                    .is_some_and(|tab| self.can_detach_tab(&tab)),
             ),
+            Command::action(
+                "app.go_to_tab_window",
+                G,
+                "Go to tab window",
+                "client.tab.go_to_window",
+            )
+            .enabled(self.detached_here()),
+            Command::action(
+                "app.restore_tab_here",
+                G,
+                "Restore tab to this window",
+                "client.tab.restore_to_window",
+            )
+            .enabled(self.detached_here()),
             Command::action("app.about", G, "About Rex Linux", about::ABOUT)
                 .keywords("version build license credits"),
             Command::row("app.help", G, help::command()).keywords("guide docs documentation"),
@@ -1006,6 +1024,15 @@ impl Workspace {
         commands.extend(self.view_commands());
         commands.extend(self.app_commands());
         for command in &mut commands {
+            if self.detached_here()
+                && command
+                    .entry
+                    .action
+                    .shortcut()
+                    .is_some_and(|(name, _)| name.starts_with("pane."))
+            {
+                command.entry.enabled = false;
+            }
             self.shortcut_details(std::slice::from_mut(&mut command.entry));
         }
         let server = self.server_commands(&commands);

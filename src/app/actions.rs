@@ -197,6 +197,8 @@ specs! {
     "client.window.close" => Compatibility,
     "client.window.fullscreen.toggle" => Compatibility,
     "client.tab.move_to_new_window" => Compatibility,
+    "client.tab.go_to_window" => Compatibility,
+    "client.tab.restore_to_window" => Compatibility,
 }
 
 pub fn find(name: &str) -> Option<&'static Spec> {
@@ -219,6 +221,9 @@ impl Spec {
         use Handler::*;
         match self.handler {
             Compatibility => match self.name {
+                "client.tab.go_to_window" | "client.tab.restore_to_window" => Remote::Never(
+                    "Switching or restoring a detached native view requires local interaction.",
+                ),
                 "pane.float"
                 | "pane.new_floating"
                 | "pane.minimize_floating"
@@ -598,6 +603,12 @@ pub fn run(s: &mut Workspace, name: &str, args: &Value, tx: &mut Tx) -> bool {
     let Some(spec) = find(name).filter(|spec| spec.accepts(args)) else {
         return false;
     };
+    if s.detached_here() && name.starts_with("pane.") {
+        s.inform(
+            "This tab is open in another window. Use Go to window or Restore to this window first.",
+        );
+        return false;
+    }
     match spec.handler {
         Handler::Compatibility => super::compatibility::run(s, name, args, tx),
         Handler::Palette => s.picker(false),

@@ -1,8 +1,11 @@
 //! Native window identities, shared preference deltas and window-local lifecycle.
+#[path = "detached.rs"]
+mod detached;
 use super::{
     fonts::Fonts,
     workspace::{HostId, Workspace},
 };
+pub(super) use detached::{TabDrag, placeholder};
 use rex_linux::{
     connection::{
         HostCommand, Options,
@@ -50,6 +53,7 @@ pub struct Desktop {
     base_label: String,
     foreground: Option<Foreground>,
     notes: HashMap<NoteKey, (u64, Instant)>,
+    detached: HashMap<detached::TabKey, u64>,
 }
 
 impl Desktop {
@@ -66,6 +70,7 @@ impl Desktop {
             revision: 0,
             foreground: None,
             notes: HashMap::new(),
+            detached: HashMap::new(),
         }))
     }
 }
@@ -82,6 +87,9 @@ pub struct WindowState {
     status: Arc<AtomicU8>,
     native: Option<WindowHandle>,
     pub pending: Option<Opening>,
+    local_opening: Option<detached::LocalOpening>,
+    placeholder: bool,
+    dedicated: Option<detached::TabKey>,
     pub close_reply: Option<(HostId, u64, String)>,
 }
 
@@ -90,7 +98,8 @@ pub struct Opening {
     pending: Pending,
     status: Arc<AtomicU8>,
     native: WindowHandle,
-    detach: bool,
+    detach: Option<detached::TabKey>,
+    child: u64,
 }
 
 impl WindowState {
@@ -123,6 +132,9 @@ impl WindowState {
             status: Arc::new(AtomicU8::new(0)),
             native: None,
             pending: None,
+            local_opening: None,
+            placeholder: false,
+            dedicated: None,
             close_reply: None,
         }
     }
@@ -158,13 +170,22 @@ pub fn window(
 }
 
 pub fn closed(s: &mut Workspace, _: &mut Tx) {
-    if let Some(d) = &s.desktop {
+    if let Some(d) = &mut s.desktop {
         d.status.store(0, Ordering::Release);
+        if let Some(opening) = d.local_opening.take() {
+            opening.native.close();
+        }
+        if let Some(opening) = d.pending.take() {
+            opening.native.close();
+        }
         let mut shared = d.shared.lock().expect("desktop");
         shared.windows.remove(&d.id);
+        shared.detached.retain(|_, owner| *owner != d.id);
         if shared.foreground.as_ref().is_some_and(|f| f.id == d.id) {
             shared.foreground = None;
         }
+        drop(shared);
+        detached::broadcast(&d.shared);
     }
 }
 
@@ -245,16 +266,20 @@ impl Workspace {
         let Some(d) = &self.desktop else {
             return;
         };
+        let held = self.detached_here();
         let mut shared = d.shared.lock().expect("desktop");
         if self.window_focused {
             shared.foreground = Some(Foreground {
                 id: d.id,
                 endpoint: self.settings.hosts[self.active].endpoint.clone(),
                 session: self.model().selected.clone(),
-                window: self.model().window().and_then(|w| w.window_id.clone()),
+                window: (!held)
+                    .then(|| self.model().window().and_then(|w| w.window_id.clone()))
+                    .flatten(),
                 blocks: self
                     .model()
                     .window()
+                    .filter(|_| !held)
                     .map(|w| {
                         rex_linux::layout::placements(w, None)
                             .0
@@ -479,28 +504,105 @@ impl Workspace {
         remote: Option<(usize, Pending)>,
         tx: &mut Tx,
     ) {
+        let target = self.active_tab();
+        if detach && target.is_none() {
+            if let Some((host, pending)) = remote {
+                self.remote_reply(
+                    host,
+                    pending,
+                    Outcome::error("not_found", "No tab is selected."),
+                );
+            }
+            return;
+        }
+        self.open_desktop_target(if detach { target } else { None }, remote, None, tx);
+    }
+
+    pub(super) fn open_desktop_target(
+        &mut self,
+        target: Option<super::tabs::TabTarget>,
+        remote: Option<(usize, Pending)>,
+        position: Option<(i32, i32)>,
+        tx: &mut Tx,
+    ) {
         let Some(desktop) = &self.desktop else {
             return;
         };
+        if desktop.local_opening.is_some() || desktop.pending.is_some() {
+            if let Some((host, pending)) = remote {
+                self.remote_reply(
+                    host,
+                    pending,
+                    Outcome::error("refused", "A desktop window is already opening."),
+                );
+            }
+            return;
+        }
+        let host = target.as_ref().map_or(self.active, |t| t.host);
+        let key = target.as_ref().and_then(|t| self.detach_key(t));
+        if target.is_some() && key.is_none() {
+            if let Some((host, pending)) = remote {
+                self.remote_reply(
+                    host,
+                    pending,
+                    Outcome::error("not_found", "The tab is no longer available."),
+                );
+            }
+            return;
+        }
+        if key.as_ref().is_some_and(|key| {
+            desktop
+                .shared
+                .lock()
+                .expect("desktop")
+                .detached
+                .get(key)
+                .is_some_and(|owner| *owner != desktop.id)
+        }) {
+            if let Some((host, pending)) = remote {
+                self.remote_reply(
+                    host,
+                    pending,
+                    Outcome::error(
+                        "refused",
+                        "This tab is already open in another desktop window.",
+                    ),
+                );
+            } else {
+                self.inform(
+                    "This tab is already detached; use Go to window or Restore to this window.",
+                );
+            }
+            return;
+        }
         let shared = desktop.shared.clone();
         let mut options = self.options.clone();
         options.new = None;
         options.block = None;
         options.rune.clear();
         options.font_size = None;
-        options.endpoint = self.settings.hosts[self.active].endpoint.clone();
-        options.session = self.model().selected.clone();
-        let tab = options
-            .session
-            .clone()
-            .zip(self.model().window().and_then(|w| w.window_id.clone()));
+        options.endpoint = self.settings.hosts[host].endpoint.clone();
+        options.session = target
+            .as_ref()
+            .map(|t| t.session.clone())
+            .or_else(|| self.model().selected.clone());
+        let tab = target
+            .as_ref()
+            .map(|t| (t.session.clone(), t.window.clone()))
+            .or_else(|| {
+                options
+                    .session
+                    .clone()
+                    .zip(self.model().window().and_then(|w| w.window_id.clone()))
+            });
         let (id, settings) = {
             let mut d = shared.lock().expect("desktop");
             let id = d.next;
             d.next += 1;
             (id, d.settings.clone())
         };
-        let child = WindowState::new(shared, id);
+        let mut child = WindowState::new(shared, id);
+        child.dedicated = key.clone();
         let status = child.status.clone();
         let native = rune::open_window(window(
             options,
@@ -510,37 +612,34 @@ impl Workspace {
             tab,
             remote.is_some(),
         ));
+        if let Some(position) = position {
+            native.set_position(position);
+        }
         if let Some((host, pending)) = remote {
             self.desktop.as_mut().unwrap().pending = Some(Opening {
                 host: self.hosts[host].id,
                 pending,
                 status,
                 native,
-                detach,
+                detach: key,
+                child: id,
             });
-            tx.wake_after(std::time::Duration::from_millis(30));
-        } else if detach {
-            self.leave_detached_tab(tx);
+        } else if let Some(key) = key {
+            self.desktop.as_mut().unwrap().local_opening = Some(detached::LocalOpening {
+                key,
+                host: self.hosts[host].id,
+                epoch: self.hosts[host].model.connection_epoch,
+                status,
+                native,
+                child: id,
+                deadline: Instant::now() + MAX_WAIT,
+            });
         }
-    }
-
-    fn leave_detached_tab(&mut self, tx: &mut Tx) {
-        let current = self.model().window().and_then(|w| w.window_id.as_ref());
-        let other = self.model().view().and_then(|v| {
-            v.windows.iter().find_map(|w| {
-                w.window_id
-                    .as_ref()
-                    .filter(|id| Some(*id) != current)
-                    .cloned()
-            })
-        });
-        if let Some(other) = other {
-            self.perform(super::panel::Intent::Tab(other), tx);
-        }
-        // The final tab remains a second view: detaching never creates or destroys programs.
+        tx.wake_after(std::time::Duration::from_millis(30));
     }
 
     pub(super) fn poll_desktop(&mut self, now: Instant, tx: &mut Tx) -> bool {
+        let detached_changed = self.poll_detached(now, tx);
         self.record_desktop_focus();
         if let Some(d) = &self.desktop {
             let connected = self.hosts.get(self.active).is_some_and(|h| {
@@ -589,7 +688,7 @@ impl Workspace {
             }
         }
         let Some(opening) = d.pending.take() else {
-            return false;
+            return detached_changed;
         };
         let host = self.host_index(opening.host);
         let valid = host.is_some_and(|h| {
@@ -606,14 +705,16 @@ impl Workspace {
             return true;
         }
         if ready {
-            if opening.detach {
-                self.remote_dispatch = Some(Vec::new());
-                self.leave_detached_tab(tx);
-                let commands = self.remote_dispatch.take().unwrap();
-                if !commands.is_empty() {
-                    self.dispatch_remote_commands(host.unwrap(), opening.pending, commands);
-                    return true;
-                }
+            if let Some(key) = opening.detach
+                && !self.publish_detached(key, opening.child, tx)
+            {
+                opening.native.close();
+                self.remote_reply(
+                    host.unwrap(),
+                    opening.pending,
+                    Outcome::error("not_found", "The tab changed while its window was opening."),
+                );
+                return true;
             }
             self.remote_reply(host.unwrap(), opening.pending, Outcome::Performed);
             return true;
@@ -740,7 +841,7 @@ mod tests {
     use super::*;
     use clap::Parser;
 
-    fn fixture() -> (Workspace, Arc<Mutex<Desktop>>) {
+    pub(super) fn fixture() -> (Workspace, Arc<Mutex<Desktop>>) {
         let options = Options::parse_from([
             "rex-linux",
             "--endpoint",
@@ -923,3 +1024,7 @@ mod tests {
         assert!(inactive.window_focused);
     }
 }
+
+#[cfg(test)]
+#[path = "detached_tests.rs"]
+mod detached_tests;

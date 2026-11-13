@@ -88,6 +88,7 @@ impl Intent {
             Self::CloseWindow(_) => ("client.tab.close", Value::Null),
             Self::Window(_, tab) => match tab {
                 TabAction::Rename => ("client.tab.rename", Value::Null),
+                TabAction::Detach => ("client.tab.move_to_new_window", Value::Null),
                 TabAction::Mute => ("client.tab.mute", Value::Null),
                 TabAction::MoveLeft => ("client.tab.move", json!({"direction":"left"})),
                 TabAction::MoveRight => ("client.tab.move", json!({"direction":"right"})),

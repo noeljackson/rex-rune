@@ -15,6 +15,17 @@ paths so the whole dependency graph sees a single `rune`. Nothing outside the ve
 
 ## Changes
 
+- `WindowHandle::focus_from(source)` requests cross-window activation from a local user
+  interaction. On Wayland a private queue on winit's display observes this surface's
+  pointer/key presses and requests an XDG token with their real seat and serial (winit
+  0.30's request omits them). Input is observed from window creation; the queue is
+  pumped without blocking each event-loop turn. Tokens go to the existing target
+  surface. One pending request per source, exact token matching and a two-second
+  input/response lifetime prevent stale activation; each serial is consumed once. Closed
+  targets are never recreated. Other platforms use normal activation; compositor policy
+  still decides focus. Handle routing has a unit test; Rex's private tab tear-off
+  acceptance checks the resulting native focus on X11 and Wayland.
+
 - `Runtime::physical_key_input` is public so Rex's headless tests can inject the native
   physical/logical pair, base character, repeat and release without scripts or private
   runtime access. No dispatch behavior changes. `src/app/physical_input_tests.rs` checks

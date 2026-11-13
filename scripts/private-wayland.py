@@ -63,6 +63,14 @@ class Desktop:
         destroyed = set(re.findall(r"xdg_toplevel[#@](\d+)\.destroy\(", trace))
         return [window for window in created if window not in destroyed]
 
+    def _focused_window(self):
+        trace = self.trace.read_text(errors="replace")
+        surfaces = dict(re.findall(r"get_xdg_surface\(new id xdg_surface[#@](\d+), wl_surface[#@](\d+)\)", trace))
+        tops = {top:surface for surface,top in re.findall(r"xdg_surface[#@](\d+)\.get_toplevel\(new id xdg_toplevel[#@](\d+)\)", trace)}
+        entries = re.findall(r"wl_keyboard[#@]\d+\.enter\(\d+, wl_surface[#@](\d+),", trace)
+        focused = next((top for top,surface in tops.items() if entries and surfaces.get(surface) == entries[-1]), None)
+        return focused
+
     def launch(self, sid, config, size="1440x900", extra_env=None, log=None, binary=None):
         env = dict(self.env, **(extra_env or {}), WAYLAND_DEBUG="client")
         env.pop("DISPLAY", None)
@@ -98,15 +106,27 @@ class Desktop:
         if args[0] == "search":
             return "\n".join(self._windows())
         if args[0] == "windowfocus":
-            trace = self.trace.read_text(errors="replace")
-            surfaces = dict(re.findall(r"get_xdg_surface\(new id xdg_surface[#@](\d+), wl_surface[#@](\d+)\)", trace))
-            tops = {top:surface for surface,top in re.findall(r"xdg_surface[#@](\d+)\.get_toplevel\(new id xdg_toplevel[#@](\d+)\)", trace)}
-            entries = re.findall(r"wl_keyboard[#@]\d+\.enter\(\d+, wl_surface[#@](\d+),", trace)
-            focused = next((top for top,surface in tops.items() if entries and surfaces.get(surface) == entries[-1]), None)
-            if args[1] != focused:
-                self.key("alt+Tab")
-            self.focused = args[1]
-            return ""
+            target = args[1]
+            assert target in self._windows(), "requested private window no longer exists"
+            if self._focused_window() == target:
+                self.focused = target
+                return ""
+            # Hold Alt across each cycle: repeated complete Alt-Tab strokes toggle
+            # only the last two windows. Confirm real keyboard focus after release.
+            for count in range(1, len(self._windows()) + 1):
+                self.drive("kdown 56", "mods 8")
+                try:
+                    for _ in range(count):
+                        self.drive("kdown 15", "kup 15")
+                finally:
+                    self.drive("kup 56", "mods 0")
+                deadline = time.monotonic() + .6
+                while time.monotonic() < deadline:
+                    if self._focused_window() == target:
+                        self.focused = target
+                        return ""
+                    time.sleep(.025)
+            raise AssertionError(f"could not focus private Wayland window {target}")
         raise AssertionError(f"Unsupported Wayland acceptance operation: {args}")
 
     def key(self, *strokes):

@@ -183,6 +183,14 @@ fn plan(
         model.window()
     }
     .ok_or_else(|| error("The tab is no longer available."))?;
+    if target.is_some_and(|target| s.pane_in_detached_window(target))
+        || (target.is_none() && s.detached_here())
+    {
+        return Err(Outcome::error(
+            "refused",
+            "This tab is open in another window.",
+        ));
+    }
     let layer = block.and_then(|block| layer_for(window, block));
     let floats: Vec<_> = window
         .layers

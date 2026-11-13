@@ -119,7 +119,8 @@ def run():
                   "notifications": {"system_notifications": False}}
         workspace.write_text(json.dumps(config))
         workspace.with_name("workspace.shortcuts.json").write_text(json.dumps([
-            {"keys":"ctrl+alt+9", "action":"client.font.increase"}
+            {"keys":"ctrl+alt+9", "action":"client.font.increase"},
+            {"keys":"ctrl+alt+8", "action":"client.tab.restore_to_window"}
         ]))
         if os.environ.get("REX_ACCEPTANCE_BACKEND") == "wayland":
             wl_spec = importlib.util.spec_from_file_location("private_wayland", ROOT / "scripts/private-wayland.py")
@@ -221,9 +222,14 @@ def run():
         label = base_label + "/window-3"
         perform("pane.zoom")
         label = base_label
+        perform("pane.split.right", error="another window")
+        if os.environ.get("REX_ACCEPTANCE_BACKEND") != "wayland":
+            desktop.x("windowraise", first)
+        desktop.x("windowfocus", first)
+        desktop.key("ctrl+alt+8")
+        wait(lambda: len(desktop.x("search", "--pid", app.pid).splitlines()) == 2, "Restore did not close its dedicated view")
+        time.sleep(1.7)
         perform("pane.split.right")
-        label = base_label + "/window-3"
-        perform("client.window.close")
         print("PASS tab detaches into its own CLI target without creating replacement programs", flush=True)
         label = base_label
         perform("client.window.close")

@@ -100,6 +100,7 @@ fn the_tab_menu_groups_its_actions_and_ends_with_close() {
             ("Mute tab", true),
             ("Move left", true),
             ("Move right", true),
+            ("Move tab to new desktop window", false),
             ("New tab", true),
             ("Close other tabs…", true),
             ("Close tab…", true),
@@ -109,9 +110,12 @@ fn the_tab_menu_groups_its_actions_and_ends_with_close() {
     // A hairline starts each group, and the rows that end tabs are the last one, in DANGER.
     let entries = rt.state.entries();
     let sections: Vec<u8> = entries.iter().map(|e| e.section).collect();
-    assert_eq!(sections, [0, 0, 1, 1, 2, 3, 3]);
+    assert_eq!(sections, [0, 0, 1, 1, 1, 2, 3, 3]);
     let danger: Vec<bool> = entries.iter().map(|e| e.danger).collect();
-    assert_eq!(danger, [false, false, false, false, false, true, true]);
+    assert_eq!(
+        danger,
+        [false, false, false, false, false, false, true, true]
+    );
     let lines = rt
         .elements()
         .iter()
@@ -125,7 +129,7 @@ fn the_tab_menu_groups_its_actions_and_ends_with_close() {
     let details: Vec<String> = rt.state.entries().into_iter().map(|e| e.detail).collect();
     assert_eq!(details[2], "Ctrl Shift PageUp", "{details:?}");
     assert_eq!(details[3], "Ctrl Shift PageDown");
-    assert_eq!(details[4], "Ctrl Shift T");
+    assert_eq!(details[5], "Ctrl Shift T");
     press(&mut rt, Key::Escape);
     assert!(rt.state.panel.is_none());
     assert!(!has(&rt, "tab-target:b"));
@@ -162,7 +166,12 @@ fn the_tab_menu_groups_its_actions_and_ends_with_close() {
             .filter(|(_, enabled)| !enabled)
             .map(|(label, _)| label)
             .collect::<Vec<_>>(),
-        ["Move left", "Move right", "Close other tabs…"]
+        [
+            "Move left",
+            "Move right",
+            "Move tab to new desktop window",
+            "Close other tabs…"
+        ]
     );
     press(&mut rt, Key::Escape);
 
@@ -639,6 +648,7 @@ fn sidebar_tab_rows_open_the_same_menu_for_their_own_session() {
             ("Mute tab", true),
             ("Move up", true),
             ("Move down", false),
+            ("Move tab to new desktop window", false),
             ("New tab", true),
             ("Close other tabs…", true),
             ("Close tab…", true),
