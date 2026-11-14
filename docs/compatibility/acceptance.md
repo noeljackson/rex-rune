@@ -35,7 +35,7 @@ python3 scripts/settings-parity-acceptance.py
 | Workspace consent | Acknowledged creation/layout changes, old View consent preserved, local close confirmation/cancellation/expiry, clipboard/settings/system refusal. |
 | Desktop windows | Independent CLI labels and tabs, real keyboard targeting, window-local dialogs, shared preferences, detach without replacement blocks, original and last-window closure. |
 | Tab tear-off | Toolbar/sidebar pointer release and native preview, terminal-only chrome and navigation refusal, all four new split directions, last-tab placeholder, Go keyboard focus, Restore, hidden input/sizing, tab-menu/CLI paths and native lifetime; original block IDs, PID/start time and output survive. |
-| Mac Settings and icons | Native search/page history, visual previews, repeated sidebar switching, unchanged preferences and original shell/block/PID/output. Headless tests also inspect every intermediate frame of sidebar/toolbar icon selection. |
+| Mac Settings and icons | Native search/page history, visual previews, repeated sidebar switching within a session and between two sessions in Top tab position, unchanged preferences and original shell/block/PID/output. Headless tests also inspect intermediate frames of session icon/label identity and sidebar/toolbar program-icon selection. |
 | Floating panes | Original block ID/shell PID/start time/output survive moves, resize, hide/restore, reconnect, docking and native-view reattachment; stacking/input, cross-tab refusal, external changes and explicit source-tab destruction. |
 
 Desktop, floating and tear-off checks also run on a private native Wayland compositor at

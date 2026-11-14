@@ -99,10 +99,10 @@ def run():
             return api("session.view",session_id=sid)
         def content():
             return api("com.superlogical.terminal.format",session_id=sid,block_id=block,args={"format":"text","trim":True})["content"]
-        def ready():
+        def ready(session=sid):
             clients=api("client.list")["clients"]
             cid=next((c["client_id"] for c in clients if c.get("info",{}).get("label")=="settings-accept" and c.get("connection_state")=="connected"),None)
-            return cid and any(b.get("owner")==cid for w in view()["windows"] for l in w["layers"] for b in l["blocks"])
+            return cid and any(b.get("owner")==cid for w in api("session.view",session_id=session)["windows"] for l in w["layers"] for b in l["blocks"])
         wait(ready,"client terminal did not attach")
         wait(lambda:"$" in content(),"shell prompt not ready")
         desktop.type("printf 'SETTINGS_PID=%s\\n' \"$$\"")
@@ -181,6 +181,59 @@ def run():
         assert {b["block_id"] for w in view()["windows"] for l in w["layers"] for b in l["blocks"]}==original_blocks
         assert Path(f"/proc/{pid}/stat").read_text().split()[21]==start
         print("PASS Settings/search/history/previews preserve preferences, programs and terminal input",flush=True)
+
+        # Session rows in Top tab position have their own terminal glyph. Inserting
+        # their matched selection layer used to remount both rows' icon and label.
+        # This is a different path from switching windows inside one session above.
+        stop(app)
+        reference=api("session.create",label="reference-session",initial_windows=[{"window_label":"reference", "layout":shell} for _ in range(2)])["session_id"]
+        reference_view=api("session.view",session_id=reference)
+        reference_block=next(w["focused_block_id"] for w in reference_view["windows"] if w["window_id"]==reference_view["active_window_id"])
+        def block_ids(session):
+            return {b["block_id"] for w in api("session.view",session_id=session)["windows"] for l in w["layers"] for b in l["blocks"]}
+        reference_blocks=block_ids(reference)
+        saved=json.loads(config.read_text())
+        saved["vertical_tabs"]=False
+        config.write_text(json.dumps(saved))
+        app,window=desktop.launch(sid,config,extra_env=launch_env,log=(work/"session-app.log").open("w"),binary=BINARY)
+        owned.append(app)
+        wait(ready,"reopened client did not attach")
+        order=[s["session_id"] for s in api("session.list")["sessions"]]
+        def select_session(session, name):
+            # Header/row geometry is pinned in the headless session regression.
+            desktop.x("mousemove","--window",window,100,184+34*order.index(session))
+            desktop.x("click",1)
+            # X11's convenience capture settles first; capture directly so these
+            # images also show the beginning of the foreground transition.
+            def frame(suffix):
+                if os.environ.get("REX_ACCEPTANCE_BACKEND")=="wayland":
+                    desktop.capture(window,name+suffix)
+                else:
+                    subprocess.run(["import","-window",str(window),str(work/"captures"/(name+suffix+".png"))],env=desktop.env,check=True,timeout=10)
+            frame("-early")
+            wait(lambda:json.loads(config.read_text()).get("sessions",{}).get(endpoint)==session,"session row did not select its session")
+            time.sleep(.5)
+            frame("-settled")
+        select_session(reference,"session-reference")
+        def reference_content():
+            return api("com.superlogical.terminal.format",session_id=reference,block_id=reference_block,args={"format":"text","trim":True})["content"]
+        wait(lambda:ready(reference),"reference terminal did not attach")
+        wait(lambda:"$" in reference_content(),"reference shell prompt was not ready")
+        desktop.type("printf 'REFERENCE_PID=%s\\n' \"$$\"")
+        desktop.key("Return")
+        wait(lambda:re.search(r"REFERENCE_PID=(\d+)",reference_content()),"reference session input failed")
+        reference_pid=int(re.search(r"REFERENCE_PID=(\d+)",reference_content()).group(1))
+        reference_start=Path(f"/proc/{reference_pid}/stat").read_text().split()[21]
+        for i,session in enumerate([sid,reference,sid,sid,reference,sid]):
+            select_session(session,f"session-switch-{i}")
+        assert block_ids(sid)==original_blocks and block_ids(reference)==reference_blocks
+        assert Path(f"/proc/{pid}/stat").read_text().split()[21]==start
+        assert Path(f"/proc/{reference_pid}/stat").read_text().split()[21]==reference_start
+        assert "AFTER_SETTINGS" in content() and f"REFERENCE_PID={reference_pid}" in reference_content()
+        desktop.type("printf 'AFTER_SESSION_SWITCH\\n'")
+        desktop.key("Return")
+        wait(lambda:"\nAFTER_SESSION_SWITCH\n" in content(),"returning to the original session lost terminal input")
+        print("PASS two-session sidebar switching in Top tab position preserves both original programs",flush=True)
     except BaseException:
         if desktop and "window" in locals():
             try:

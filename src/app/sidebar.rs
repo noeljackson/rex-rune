@@ -168,7 +168,8 @@ fn session_row(s: &Workspace, index: usize, id: &str, label: &str) -> El {
         });
     if selected && !s.settings.vertical_tabs {
         e = e.child(
-            el().pin(Some(0.), Some(0.), Some(0.), Some(0.))
+            el().key("session-selection")
+                .pin(Some(0.), Some(0.), Some(0.), Some(0.))
                 .radius(9.)
                 .continuous_corners()
                 .fill(white(0.1))
@@ -182,17 +183,25 @@ fn session_row(s: &Workspace, index: usize, id: &str, label: &str) -> El {
         e = e.hover(white(0.05));
     }
     e = e
-        .child(if s.settings.vertical_tabs {
-            el()
-        } else {
-            glyph(
-                &TERMINAL,
-                14.,
-                rgb(if selected { accent() } else { muted() }),
-            )
-        })
+        // The matched selection is inserted before the foreground. Keep each foreground
+        // identity independent of that sibling, so selecting either row cannot remount it.
+        .child(
+            (if s.settings.vertical_tabs {
+                el()
+            } else {
+                glyph(
+                    &TERMINAL,
+                    14.,
+                    rgb(if selected { accent() } else { muted() }),
+                )
+            })
+            .key("session-icon")
+            .motion(rune::Spring::NONE),
+        )
         .child(
             text(label.to_owned())
+                .key("session-label")
+                .motion(rune::Spring::NONE)
                 .font(if s.settings.vertical_tabs {
                     medium(11.5)
                 } else if selected {
