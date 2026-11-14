@@ -1336,10 +1336,8 @@ fn about_is_keyboard_reachable_and_opens_links_and_copies_details() {
     let mut ws = workspace();
     ws.perform(Intent::Settings, &mut rune::Tx::default());
     let mut rt = runtime(ws);
-    // The existing Settings section list exposes About without another shortcut.
-    for _ in 0..7 {
-        press(&mut rt, Key::Down);
-    }
+    // Settings opens on search; its result exposes About without another shortcut.
+    press(&mut rt, Key::Text("About".into()));
     press(&mut rt, Key::Enter);
     assert_eq!(
         rt.state.settings_section,
@@ -1360,8 +1358,12 @@ fn about_is_keyboard_reachable_and_opens_links_and_copies_details() {
     // The header's two copies come first, then the project links.
     let clipboard = rune::clipboard::memory();
     rt.use_clipboard(&clipboard);
-    press(&mut rt, Key::Tab); // Close
-    press(&mut rt, Key::Tab);
+    for _ in 0..24 {
+        if focused(&rt).is_some_and(|p| p.ends_with("about-copy")) {
+            break;
+        }
+        press(&mut rt, Key::Tab);
+    }
     assert!(focused(&rt).unwrap().ends_with("about-copy"));
     press(&mut rt, Key::Enter);
     assert_eq!(
@@ -1434,7 +1436,7 @@ fn the_toolbar_settings_button_opens_settings() {
 }
 
 #[test]
-fn forms_focus_their_first_field_and_settings_start_on_its_section_list() {
+fn forms_focus_their_first_field_and_settings_start_on_search() {
     let mut ws = workspace();
     ws.open_panel(
         PanelKind::Form(Form::RenameSession(None)),
@@ -1464,19 +1466,16 @@ fn forms_focus_their_first_field_and_settings_start_on_its_section_list() {
         Some(PanelKind::Settings)
     ));
     let path = focused(&rt).expect("a focused control");
-    assert!(
-        path.ends_with("settings-section:interface"),
-        "settings focus {path}"
-    );
+    assert!(path.contains("settings-search"), "settings focus {path}");
     // The keyboard path scripts/x11-smoke.py takes to the font stepper.
-    press(&mut rt, Key::Down);
+    press(&mut rt, Key::Text("typography".into()));
     press(&mut rt, Key::Enter);
     assert_eq!(
         rt.state.settings_section,
         super::panel::SettingsSection::Terminal
     );
     let font = rt.state.settings.font_size;
-    for _ in 0..4 {
+    for _ in 0..7 {
         press(&mut rt, Key::Tab);
     }
     let path = focused(&rt).expect("a focused control");
@@ -3203,7 +3202,7 @@ fn pane_padding_controls_reach_zero_and_save() {
     let mut ws = workspace();
     ws.perform(Intent::Settings, &mut rune::Tx::default());
     let mut rt = runtime(ws);
-    click(&mut rt, "settings-section:terminal");
+    click(&mut rt, "customize-panes");
     for _ in 0..9 {
         click(&mut rt, "pane-padding-smaller");
     }
@@ -3223,6 +3222,205 @@ fn pane_padding_controls_reach_zero_and_save() {
         1.
     );
     std::fs::remove_file(&rt.state.settings_path).unwrap();
+}
+
+#[test]
+fn sidebar_session_icons_and_labels_do_not_remount_when_selection_moves() {
+    let (mut ws, _rx) = sidebar_tabs_workspace();
+    ws.settings.vertical_tabs = false;
+    let mut rt = runtime(ws);
+    for _ in 0..90 {
+        rt.frame(1. / 60.);
+    }
+    let foreground = |rt: &Runtime<Workspace>| {
+        rt.elements()
+            .into_iter()
+            .filter(|e| {
+                matches!(e.role, "icon" | "text")
+                    && ["s", "other"]
+                        .iter()
+                        .any(|id| e.path.contains(&format!("session:0:{id}/")))
+            })
+            .collect::<Vec<_>>()
+    };
+    let before = foreground(&rt);
+    assert_eq!(before.iter().filter(|e| e.role == "icon").count(), 2);
+    assert_eq!(before.iter().filter(|e| e.role == "text").count(), 4);
+    // Native acceptance clicks these session rows in Top tab position.
+    for (id, y) in [("s", 184.), ("other", 218.)] {
+        let row = rt
+            .elements()
+            .into_iter()
+            .find(|e| e.key.as_deref() == Some(&format!("session:0:{id}")))
+            .unwrap();
+        assert!((row.rect[1] + row.rect[3] / 2. - y).abs() < 0.001);
+    }
+    for (session, frames) in [
+        ("other", 1),
+        ("s", 2),
+        ("other", 1),
+        ("other", 24),
+        ("s", 24),
+    ] {
+        // Model selection also covers server acknowledgements, without the click helper's
+        // four-frame settling delay hiding the beginning of an entrance animation.
+        rt.update(|s, _| s.hosts[0].model.selected = Some(session.into()));
+        for frame in 0..frames {
+            rt.frame(1. / 60.);
+            let after = foreground(&rt);
+            assert_eq!(
+                after.len(),
+                before.len(),
+                "session {session}, frame {frame}"
+            );
+            for (a, b) in after.iter().zip(&before) {
+                assert_eq!(a.path, b.path, "session {session}, frame {frame}");
+                assert!(
+                    !a.exiting,
+                    "session {session}, frame {frame}: {} exits",
+                    a.path
+                );
+                assert!(
+                    !a.revealing,
+                    "session {session}, frame {frame}: {} reveals",
+                    a.path
+                );
+                assert!(
+                    (a.opacity - 1.).abs() < 0.001,
+                    "session {session}, frame {frame}: {} fades to {}",
+                    a.path,
+                    a.opacity
+                );
+                assert!(
+                    (a.scale - b.scale).abs() < 0.001,
+                    "session {session}, frame {frame}: {} scales",
+                    a.path
+                );
+                assert!(
+                    a.rect
+                        .iter()
+                        .zip(b.rect)
+                        .all(|(a, b)| (a - b).abs() < 0.001),
+                    "session {session}, frame {frame}: {} moves {:?} -> {:?}",
+                    a.path,
+                    b.rect,
+                    a.rect
+                );
+                if a.role == "icon" || a.key.as_deref() == Some("session-label") {
+                    let selected = a.path.contains(&format!("session:0:{session}/"));
+                    let expected = super::theme::rgb(if selected {
+                        if a.role == "icon" {
+                            super::theme::accent()
+                        } else {
+                            super::theme::ink()
+                        }
+                    } else {
+                        super::theme::muted()
+                    });
+                    let actual = a.text_color.expect("session foreground tint");
+                    assert!(
+                        (actual.r - expected.r).abs() < 0.001
+                            && (actual.g - expected.g).abs() < 0.001
+                            && (actual.b - expected.b).abs() < 0.001,
+                        "session {session}, frame {frame}: foreground tint fades {actual:?} -> {expected:?}"
+                    );
+                }
+            }
+        }
+    }
+    std::fs::remove_file(&rt.state.settings_path).ok();
+}
+
+#[test]
+fn sidebar_program_icons_stay_present_and_stationary_through_tab_selection() {
+    for sidebar in [true, false] {
+        let (mut ws, _rx) = tabbed_workspace("single");
+        ws.sidebar.set_open(true);
+        ws.settings.vertical_tabs = sidebar;
+        ws.hosts[0]
+            .model
+            .programs
+            .insert("block:a".into(), "codex".into());
+        ws.hosts[0]
+            .model
+            .programs
+            .insert("block:b".into(), "claude".into());
+        let mut rt = runtime(ws);
+        for _ in 0..90 {
+            rt.frame(1. / 60.);
+        }
+        let icons = |rt: &Runtime<Workspace>| {
+            rt.elements()
+                .into_iter()
+                .filter(|e| {
+                    !e.exiting
+                        && e.role == "icon"
+                        && if sidebar {
+                            e.path.contains("sidebar-tab:0:s:")
+                        } else {
+                            e.path.contains("/tab-icon:")
+                        }
+                })
+                .collect::<Vec<_>>()
+        };
+        let before = icons(&rt);
+        assert_eq!(before.len(), 2);
+        for tab in ["split", "single", "split", "split", "single"] {
+            rt.update(|s, _| {
+                s.hosts[0]
+                    .model
+                    .views
+                    .get_mut("s")
+                    .unwrap()
+                    .active_window_id = Some(tab.into())
+            });
+            for frame in 0..18 {
+                rt.frame(1. / 60.);
+                let after = icons(&rt);
+                assert_eq!(after.len(), before.len());
+                for (a, b) in after.iter().zip(&before) {
+                    assert_eq!(a.path, b.path, "tab {tab}, frame {frame}");
+                    assert!(
+                        (a.opacity - 1.).abs() < 0.001,
+                        "tab {tab}, frame {frame}: opacity {}",
+                        a.opacity
+                    );
+                    assert!(
+                        (a.scale - b.scale).abs() < 0.001,
+                        "tab {tab}, frame {frame}: scale {}",
+                        a.scale
+                    );
+                    assert!(
+                        a.rect
+                            .iter()
+                            .zip(b.rect)
+                            .all(|(a, b)| (a - b).abs() < 0.001),
+                        "tab {tab}, frame {frame}: rect {:?} -> {:?}",
+                        b.rect,
+                        a.rect
+                    );
+                    let active = if sidebar {
+                        a.path.contains(&format!("sidebar-tab:0:s:{tab}/"))
+                    } else {
+                        a.path.contains(&format!("/tab-icon:{tab}/"))
+                    };
+                    let expected = crate::app::theme::rgb(if active {
+                        crate::app::theme::ink()
+                    } else {
+                        crate::app::theme::muted()
+                    });
+                    let actual = a.text_color.expect("icon tint");
+                    assert!(
+                        (actual.r - expected.r).abs() < 0.001
+                            && (actual.g - expected.g).abs() < 0.001
+                            && (actual.b - expected.b).abs() < 0.001,
+                        "tab {tab}, frame {frame}: icon tint should update without replaying a fade: {actual:?} vs {expected:?}"
+                    );
+                }
+            }
+        }
+        std::fs::remove_file(&rt.state.settings_path).ok();
+    }
 }
 
 #[test]

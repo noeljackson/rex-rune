@@ -132,6 +132,7 @@ pub struct Workspace {
     scratch: TextEdit,
     next_host: u64,
     pub settings_section: SettingsSection,
+    pub settings_navigation: super::settings_navigation::Navigation,
     /// Each tab's folded activity state when last synced.
     pub tab_states: TabStates,
     /// Tabs whose programs finished while the user wasn't looking; they show "Done".
@@ -302,6 +303,7 @@ impl Workspace {
             scratch: TextEdit::new(""),
             next_host: 0,
             settings_section: SettingsSection::default(),
+            settings_navigation: Default::default(),
             tab_states: HashMap::new(),
             unseen_done: HashSet::new(),
             unseen_bells: HashSet::new(),
@@ -1518,6 +1520,7 @@ impl Workspace {
             }
             Intent::Sidebar => self.toggle_sidebar(),
             Intent::Settings => {
+                self.settings_navigation = Default::default();
                 self.bindings.sequence.clear();
                 self.reload_shortcuts();
                 let back = self.panel.take();
@@ -1960,6 +1963,8 @@ impl Workspace {
 
     /// Show a Settings section; Integrations reads the agents' state when first shown.
     pub fn open_section(&mut self, section: SettingsSection) {
+        self.settings_navigation
+            .leave(self.settings_section, section);
         self.settings_section = section;
         if section == SettingsSection::Shortcuts {
             self.reload_shortcuts();

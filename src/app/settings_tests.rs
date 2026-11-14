@@ -81,7 +81,10 @@ fn inside(elements: &[rune::ElementInfo], index: usize, role: &str) -> usize {
 
 #[test]
 fn every_page_is_cards_with_a_rule_between_each_pair_of_rows_and_one_trailing_edge() {
-    for section in SettingsSection::ALL {
+    for section in SettingsSection::ALL
+        .into_iter()
+        .chain([SettingsSection::Tabs, SettingsSection::Panes])
+    {
         for scale in [1., 1.3] {
             let mut rt = settings_at(section, scale, (1440., 1000.));
             if section == SettingsSection::Integrations {
@@ -238,7 +241,7 @@ fn a_picker_opens_over_settings_against_its_control_and_gives_focus_back() {
 
 #[test]
 fn a_select_row_lists_its_values_and_applies_the_chosen_one() {
-    let mut rt = settings_at(SettingsSection::Interface, 1., (1440., 1000.));
+    let mut rt = settings_at(SettingsSection::Notifications, 1., (1440., 1000.));
     click(&mut rt, "notice-position");
     settle(&mut rt);
     let Some(PanelKind::Choice(choice)) = kind(&rt) else {
@@ -358,8 +361,13 @@ fn a_choice_without_settings_behind_it_closes_and_ignores_a_stale_index() {
 #[test]
 fn disclosure_rows_and_segments_work_from_the_keyboard() {
     let mut rt = settings_at(SettingsSection::Terminal, 1., (1440., 1000.));
-    press(&mut rt, Key::Tab); // Close
-    press(&mut rt, Key::Tab); // Font family
+    // Search and page-history controls now precede the page's settings.
+    for _ in 0..24 {
+        if focused(&rt).is_some_and(|p| p.ends_with("font-change")) {
+            break;
+        }
+        press(&mut rt, Key::Tab);
+    }
     assert!(focused(&rt).unwrap().ends_with("font-change"));
     press(&mut rt, Key::Enter);
     assert!(matches!(kind(&rt), Some(PanelKind::Form(Form::Fonts))));
@@ -383,6 +391,8 @@ fn disclosure_rows_and_segments_work_from_the_keyboard() {
     click(&mut rt, "settings-section:interface");
     settle(&mut rt);
     let density = rect(&rt, "pane-density");
+    click(&mut rt, "customize-tabs");
+    settle(&mut rt);
     let tabs = rect(&rt, "tab-position");
     assert!(
         close(density[0], tabs[0]) && close(density[2], tabs[2]),
@@ -561,4 +571,111 @@ fn the_acceptance_scripts_settings_click_lands_on_remote_hosts() {
         "({x}, {y}) is well inside Remote Hosts at {row:?}"
     );
     std::fs::remove_file(&rt.state.settings_path).ok();
+}
+
+#[test]
+fn settings_search_leads_to_a_subpage_and_back_restores_the_query_and_focus() {
+    let mut rt = settings_at(SettingsSection::Interface, 1., (1440., 1000.));
+    let saved = rt.state.settings.clone();
+    click(&mut rt, "settings-search");
+    press(&mut rt, Key::Text("pane padding".into()));
+    settle(&mut rt);
+    assert_eq!(rt.state.settings_navigation.search.text, "pane padding");
+    assert!(rect(&rt, "settings-result:0")[2] > 0.);
+    click(&mut rt, "settings-result:0");
+    settle(&mut rt);
+    assert_eq!(rt.state.settings_section, SettingsSection::Panes);
+    assert!(rt.state.settings_navigation.search.text.is_empty());
+    assert!(rect(&rt, "pane-padding-larger")[2] > 0.);
+    click(&mut rt, "settings-back");
+    settle(&mut rt);
+    assert_eq!(rt.state.settings_navigation.search.text, "pane padding");
+    assert!(focused(&rt).is_some_and(|p| p.ends_with("settings-result:0")));
+    click(&mut rt, "settings-forward");
+    settle(&mut rt);
+    assert_eq!(rt.state.settings_section, SettingsSection::Panes);
+    assert_eq!(rt.state.settings.pane_padding, saved.pane_padding);
+    assert_eq!(rt.state.settings.pane_header, saved.pane_header);
+    assert_eq!(rt.state.settings.font_size, saved.font_size);
+    assert_eq!(rt.state.settings.vertical_tabs, saved.vertical_tabs);
+    // A fresh visit drops the abandoned forward branch.
+    click(&mut rt, "settings-back");
+    click(&mut rt, "settings-section:terminal");
+    assert!(!rt.state.settings_navigation.can_forward());
+    std::fs::remove_file(&rt.state.settings_path).ok();
+}
+
+#[test]
+fn settings_search_escape_clears_then_closes_without_forwarding_terminal_input() {
+    let mut rt = settings_at(SettingsSection::Interface, 1., (1440., 1000.));
+    let rx = capture_host(&mut rt.state, 0);
+    click(&mut rt, "settings-search");
+    press(&mut rt, Key::Text("no such preference".into()));
+    settle(&mut rt);
+    assert!(text_rects(&rt, "No matching settings").len() == 1);
+    press(&mut rt, Key::Escape);
+    settle(&mut rt);
+    assert!(matches!(kind(&rt), Some(PanelKind::Settings)));
+    assert!(rt.state.settings_navigation.search.text.is_empty());
+    press(&mut rt, Key::Escape);
+    settle(&mut rt);
+    assert!(rt.state.panel.is_none());
+    assert!(
+        !rx.try_iter()
+            .any(|c| matches!(c, HostCommand::Terminal { .. }))
+    );
+    std::fs::remove_file(&rt.state.settings_path).ok();
+}
+
+#[test]
+fn settings_history_and_search_are_local_to_each_workspace() {
+    let mut first = settings_at(SettingsSection::Interface, 1., (1440., 1000.));
+    let second = settings_at(SettingsSection::Terminal, 1., (1440., 1000.));
+    click(&mut first, "customize-tabs");
+    settle(&mut first);
+    assert_eq!(first.state.settings_section, SettingsSection::Tabs);
+    assert_eq!(second.state.settings_section, SettingsSection::Terminal);
+    assert!(second.state.settings_navigation.search.text.is_empty());
+    click(&mut first, "settings-back");
+    settle(&mut first);
+    assert_eq!(first.state.settings_section, SettingsSection::Interface);
+    assert!(focused(&first).is_some_and(|p| p.ends_with("customize-tabs")));
+    std::fs::remove_file(&first.state.settings_path).ok();
+    std::fs::remove_file(&second.state.settings_path).ok();
+}
+
+#[test]
+fn settings_history_restores_the_previous_page_scroll_offset() {
+    let mut rt = settings_at(SettingsSection::Terminal, 1., (1280., 800.));
+    rt.update(|_, tx| tx.scroll_to_y("settings-scroll:terminal", 160.));
+    settle(&mut rt);
+    let before = rt.state.settings_navigation.offset.get();
+    assert!(
+        before > 10.,
+        "the long Terminal page actually scrolled: {before}"
+    );
+    click(&mut rt, "settings-section:about");
+    settle(&mut rt);
+    click(&mut rt, "settings-back");
+    settle(&mut rt);
+    assert_eq!(rt.state.settings_section, SettingsSection::Terminal);
+    assert!(close(rt.state.settings_navigation.offset.get(), before));
+    std::fs::remove_file(&rt.state.settings_path).ok();
+}
+
+#[test]
+fn native_settings_acceptance_points_hit_the_padding_controls() {
+    for size in [(1440., 900.), (640., 480.)] {
+        let rt = settings_at(SettingsSection::Panes, 1., size);
+        let d = rect(&rt, "dialog");
+        for (key, offset) in [("pane-padding-larger", 40.), ("pane-padding-smaller", 132.)] {
+            let r = rect(&rt, key);
+            let (x, y) = (d[0] + d[2] - offset, d[1] + 293.);
+            assert!(
+                x > r[0] && x < r[0] + r[2] && y > r[1] && y < r[1] + r[3],
+                "{key}: point ({x},{y}) outside {r:?} at {size:?}"
+            );
+        }
+        std::fs::remove_file(&rt.state.settings_path).ok();
+    }
 }

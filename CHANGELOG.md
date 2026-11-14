@@ -6,6 +6,10 @@
 
 ### Added
 
+- **Mac Settings parity:** colored category pictograms, a shared Back/Forward capsule, window-local Settings search/history, Tabs and Panes subpages, and visual previews of implemented appearance, tab, pane, font/theme and notification choices. Browsing previews preserves preferences and server programs. Pane actions now share a consistent icon family.
+- **Stable program icons:** switching sidebar or toolbar tabs updates icon tint immediately instead of replaying a color fade. Regression coverage checks intermediate-frame color, geometry and opacity, including repeated selection.
+- **Stable session rows:** switching between sidebar sessions keeps both terminal icons and labels mounted while their selection highlight moves. This also covers Top tab position, whose session icons use a separate path from program icons on individual tabs.
+
 - **Tab tear-off:** drag a toolbar or sidebar tab through a small pointer preview into its own isolated terminal window, or use its menu/Commands action. The original tab shows Go to window and Restore to this window, including the last tab. Restore and native-window closure preserve the original programs and output; detached views have no sidebar or tab navigation. Pane controls offer new splits left, right, up and down. Combining existing terminals by dragging is deferred. Wayland Go uses a local input activation token. Go/Restore are bindable local-only actions.
 
 - **Floating panes:** float/dock existing programs, explicitly create floating terminals, move/resize/raise/lower, and minimize/restore one or all layers. Headers provide drag, Dock and Minimize controls; corner handles resize and bottom capsules restore. Bindable actions accept Workspace remote control and acknowledge server results. Geometry, block IDs and minimized state remain server-owned across reconnects and view closure. API 12 requires an existing tiled docking anchor.

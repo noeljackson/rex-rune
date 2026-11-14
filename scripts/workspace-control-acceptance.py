@@ -202,7 +202,7 @@ def run():
         desktop.key("Escape")
         desktop.key("ctrl+comma")
         perform("client.sidebar.toggle", error="dialog or popup")
-        desktop.x("mousemove", "--window", window, 414, 351)
+        desktop.x("mousemove", "--window", window, 414, 425)
         desktop.x("click", 1)
         time.sleep(.3)
         desktop.capture(window, "workspace-remote-settings")

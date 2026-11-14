@@ -137,14 +137,17 @@ def run():
             assert "X11_NATIVE_INPUT_OK" in before_clear.splitlines(), before_clear
             assert "X11_DEAD_KEY_~_OK" in before_clear.splitlines(), before_clear
             assert "X11_CLIPBOARD_OK" in before_clear.splitlines(), before_clear
-            key("ctrl+comma")  # Settings, focused on its section list
+            key("ctrl+comma")  # Settings, focused on Search Settings
             original_size = json.loads(config.read_text())["font_size"]
-            key("Down")
-            key("Return")  # Terminal
+            text("typography")
+            key("Return")  # Terminal search result
             key("Tab")
             key("Tab")
             key("Tab")
-            key("Tab")  # Close, change family, font smaller, font larger
+            key("Tab")
+            key("Tab")
+            key("Tab")
+            key("Tab")  # Search, section list, Back, Close, family, smaller, larger
             key("Return")
             assert json.loads(config.read_text())["font_size"] == original_size + 1
             key("shift+Tab")
