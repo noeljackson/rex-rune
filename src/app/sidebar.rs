@@ -3,7 +3,7 @@
 use super::{
     activity::{program_icon, progress_bar, tab_activity, tab_name, tab_progress, tab_word},
     keycaps::keycaps,
-    panel::Intent,
+    panel::{Intent, SessionAction, SessionTarget},
     panes::divider_handle,
     tabs::{TabAction, muted_mark, target_ring},
     theme::*,
@@ -16,9 +16,46 @@ use rune::{
 };
 
 const HOST_ROW: f32 = 28.;
-const SESSION_ROW: f32 = 32.;
+const SESSION_ROW: f32 = 30.;
+const ROW_RADIUS: f32 = SESSION_ROW / 2.;
 const NOTE_ROW: f32 = 28.;
 const GROUP_GAP: f32 = 12.;
+
+/// Kept in the row even at rest: revealing Close must not shift its foreground.
+fn close_button(
+    key: String,
+    help: String,
+    enabled: bool,
+    on_press: impl Fn(&mut Workspace, &mut Tx) + 'static,
+) -> El {
+    let button = el()
+        .key(key)
+        .role("button")
+        .label(help.clone())
+        .help(help)
+        .size(22., 22.)
+        .radius(11.)
+        .center()
+        .hover(white(0.09))
+        .press(white(0.13))
+        .group_opacity(0., 1.)
+        .opacity(if enabled { 1. } else { 0.35 })
+        .preserve_focus_on_press(true)
+        .focusable(enabled)
+        .tab_index(-1)
+        .disabled(!enabled)
+        .cursor(if enabled {
+            Cursor::Pointer
+        } else {
+            Cursor::Default
+        })
+        .child(glyph(&CLOSE, 13., rgb(muted())));
+    if enabled {
+        button.on_press_tx(on_press)
+    } else {
+        button
+    }
+}
 
 fn host_header(s: &Workspace, index: usize) -> El {
     let config = &s.settings.hosts[index];
@@ -132,6 +169,16 @@ fn session_row(s: &Workspace, index: usize, id: &str, label: &str) -> El {
         .filter(|count| *count > 1);
     let target = id.to_owned();
     let menu_id = id.to_owned();
+    let close_target = SessionTarget {
+        host: index,
+        session: id.to_owned(),
+        label: label.to_owned(),
+    };
+    let radius = if s.settings.vertical_tabs {
+        12.
+    } else {
+        ROW_RADIUS
+    };
     // The session a session menu, its rename form or its close confirm acts on.
     let targeted = s
         .panel
@@ -154,8 +201,9 @@ fn session_row(s: &Workspace, index: usize, id: &str, label: &str) -> El {
         .px(10.)
         .gap(10.)
         .center_y()
-        .radius(9.)
+        .radius(radius)
         .continuous_corners()
+        .hover_group_focus()
         .cursor(Cursor::Pointer)
         .preserve_focus_on_press(true)
         .help_when_truncated(format!("{} · {label}", s.settings.hosts[index].label))
@@ -170,7 +218,7 @@ fn session_row(s: &Workspace, index: usize, id: &str, label: &str) -> El {
         e = e.child(
             el().key("session-selection")
                 .pin(Some(0.), Some(0.), Some(0.), Some(0.))
-                .radius(9.)
+                .radius(radius)
                 .continuous_corners()
                 .fill(white(0.1))
                 .box_shadow(inset(1., white(0.07)))
@@ -227,12 +275,23 @@ fn session_row(s: &Workspace, index: usize, id: &str, label: &str) -> El {
                 .color(rgb(muted())),
         );
     }
+    e = e.child(close_button(
+        format!("session-close:{index}:{id}"),
+        format!("Close session… · {label}"),
+        host.model.connected,
+        move |s, tx| {
+            s.perform(
+                Intent::Session(close_target.clone(), SessionAction::Close),
+                tx,
+            )
+        },
+    ));
     if targeted {
         // An overlay, so the outline never shifts the row; above the selected fill.
         e = e.child(
             el().key(format!("session-target:{index}:{id}"))
                 .pin(Some(0.), Some(0.), Some(0.), Some(0.))
-                .radius(9.)
+                .radius(radius)
                 .continuous_corners()
                 .border(1.5, rgb(accent())),
         );
@@ -256,6 +315,7 @@ fn window_row(s: &Workspace, index: usize, session: &str, tab: &rexrs::api::sess
     let (rename_session, rename_window) = (session.to_owned(), id.to_owned());
     let (menu_session, menu_window) = (session.to_owned(), id.to_owned());
     let drag_target = s.tab_target(index, session, id);
+    let close_target = drag_target.clone();
     let shown = s.tab_activity_shown(index, id);
     let quiet = s.tab_muted(index, id);
     let mut row = row()
@@ -267,14 +327,15 @@ fn window_row(s: &Workspace, index: usize, session: &str, tab: &rexrs::api::sess
         } else {
             label.clone()
         })
-        .h(32.)
+        .h(SESSION_ROW)
         .ml(12.)
         .pl(10.)
         .pr(8.)
         .gap(8.)
         .center_y()
-        .radius(10.)
+        .radius(ROW_RADIUS)
         .continuous_corners()
+        .hover_group_focus()
         .cursor(Cursor::Pointer)
         .preserve_focus_on_press(true)
         .help_when_truncated(label.clone())
@@ -314,6 +375,8 @@ fn window_row(s: &Workspace, index: usize, session: &str, tab: &rexrs::api::sess
         )
         .child(
             text(label)
+                .key("sidebar-tab-label")
+                .motion(rune::Spring::NONE)
                 .font(if active { medium(12.5) } else { ui(12.5) })
                 .color(rgb(if active { ink() } else { muted() }))
                 .truncate()
@@ -347,8 +410,19 @@ fn window_row(s: &Workspace, index: usize, session: &str, tab: &rexrs::api::sess
     if shown && let Some(progress) = tab_progress(&activity) {
         row = row.child(progress_bar(format!("tab-progress:{id}"), progress, 10.));
     }
+    let close_enabled = model.connected && close_target.is_some();
+    row = row.child(close_button(
+        format!("sidebar-tab-close:{index}:{session}:{id}"),
+        format!("Close tab… · {}", tab_name(model, tab)),
+        close_enabled,
+        move |s, tx| {
+            if let Some(target) = &close_target {
+                s.perform(Intent::Window(target.clone(), TabAction::Close), tx);
+            }
+        },
+    ));
     if s.tab_targeted(index, id) {
-        row = row.child(target_ring(id, 10.));
+        row = row.child(target_ring(id, ROW_RADIUS));
     }
     row
 }
@@ -418,7 +492,7 @@ pub fn sidebar(s: &Workspace, cx: &mut Cx<Workspace>) -> El {
                     for tab in &view.windows {
                         if tab.window_id.is_some() {
                             group = group.child(window_row(s, index, &session.session_id, tab));
-                            height += 34.;
+                            height += SESSION_ROW + 2.;
                         }
                     }
                 }

@@ -123,6 +123,11 @@ def run():
             desktop.x("mousemove","--window",window,20,60)
             time.sleep(.3)
             desktop.capture(window,name)
+        def capture_pointer(name):
+            if os.environ.get("REX_ACCEPTANCE_BACKEND")=="wayland":
+                desktop.capture(window,name)
+            else:
+                subprocess.run(["import","-window",str(window),str(work/"captures"/(name+".png"))],env=desktop.env,check=True,timeout=10)
         def search(query):
             click(left+70,top+65)
             desktop.key("ctrl+a")
@@ -172,7 +177,7 @@ def run():
         capture("pane-controls")
         # Real sidebar switching complements the frame-by-frame tint/geometry regression.
         for i,index in enumerate([1-source_index,source_index,1-source_index,source_index,source_index]):
-            desktop.x("mousemove","--window",window,100,210+34*index)
+            desktop.x("mousemove","--window",window,100,209+32*index)
             desktop.x("click",1)
             desktop.capture(window,f"sidebar-switch-{i}-early")
             wait(lambda:view()["active_window_id"]==original["windows"][index]["window_id"],"sidebar click did not select its tab")
@@ -180,7 +185,21 @@ def run():
             desktop.capture(window,f"sidebar-switch-{i}-settled")
         assert {b["block_id"] for w in view()["windows"] for l in w["layers"] for b in l["blocks"]}==original_blocks
         assert Path(f"/proc/{pid}/stat").read_text().split()[21]==start
-        print("PASS Settings/search/history/previews preserve preferences, programs and terminal input",flush=True)
+        # The capsule's X must act on its own tab without selecting that tab.
+        close_y=209+32*(1-source_index)
+        desktop.x("mousemove","--window",window,209,close_y)
+        time.sleep(.3)
+        capture_pointer("sidebar-tab-close-hover")
+        desktop.x("mousemove","--window",window,209,close_y)
+        desktop.x("click",1)
+        time.sleep(.3)
+        capture_pointer("sidebar-tab-close-confirmation")
+        assert view()["active_window_id"]==original["windows"][source_index]["window_id"]
+        assert {b["block_id"] for w in view()["windows"] for l in w["layers"] for b in l["blocks"]}==original_blocks
+        desktop.key("Escape")
+        time.sleep(.3)
+        assert {b["block_id"] for w in view()["windows"] for l in w["layers"] for b in l["blocks"]}==original_blocks
+        print("PASS Settings/search/history/previews and tab-close cancellation preserve programs and terminal input",flush=True)
 
         # Session rows in Top tab position have their own terminal glyph. Inserting
         # their matched selection layer used to remount both rows' icon and label.
@@ -201,7 +220,7 @@ def run():
         order=[s["session_id"] for s in api("session.list")["sessions"]]
         def select_session(session, name):
             # Header/row geometry is pinned in the headless session regression.
-            desktop.x("mousemove","--window",window,100,184+34*order.index(session))
+            desktop.x("mousemove","--window",window,100,183+32*order.index(session))
             desktop.x("click",1)
             # X11's convenience capture settles first; capture directly so these
             # images also show the beginning of the foreground transition.
@@ -234,6 +253,33 @@ def run():
         desktop.key("Return")
         wait(lambda:"\nAFTER_SESSION_SWITCH\n" in content(),"returning to the original session lost terminal input")
         print("PASS two-session sidebar switching in Top tab position preserves both original programs",flush=True)
+        # A third disposable session verifies the trailing session X's confirmed
+        # target. The two original shells must survive cancellation and closure.
+        disposable=api("session.create",label="close-target",initial_windows=[{"window_label":"disposable","layout":shell}])["session_id"]
+        time.sleep(.6)
+        desktop.x("mousemove","--window",window,207,247)
+        time.sleep(.3)
+        capture_pointer("sidebar-session-close-hover")
+        desktop.x("mousemove","--window",window,207,247)
+        desktop.x("click",1)
+        time.sleep(.3)
+        capture_pointer("sidebar-session-close-confirmation")
+        assert len(api("session.list")["sessions"])==3
+        assert json.loads(config.read_text())["sessions"][endpoint]==sid
+        desktop.key("Return")  # Keep running is the default.
+        time.sleep(.3)
+        assert len(api("session.list")["sessions"])==3
+        desktop.x("mousemove","--window",window,207,247)
+        desktop.x("click",1)
+        time.sleep(.3)
+        desktop.key("Tab")  # Explicitly choose Close and end programs.
+        desktop.type(" ")  # Space activates the focused button; Return keeps running.
+        wait(lambda:disposable not in {s["session_id"] for s in api("session.list")["sessions"]},"confirmed sidebar session close did not remove its target")
+        assert block_ids(sid)==original_blocks and block_ids(reference)==reference_blocks
+        assert Path(f"/proc/{pid}/stat").read_text().split()[21]==start
+        assert Path(f"/proc/{reference_pid}/stat").read_text().split()[21]==reference_start
+        capture_pointer("sidebar-session-close-complete")
+        print("PASS sidebar session X keeps programs by default and confirmed close affects only its named target",flush=True)
     except BaseException:
         if desktop and "window" in locals():
             try:

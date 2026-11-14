@@ -6,6 +6,8 @@
 
 ### Added
 
+- **Mac sidebar capsules:** 30 pt session/tab rows with full rounded ends and a reserved 22 pt circular close control, revealed on hover or focus. Row-specific close actions keep existing confirmation and target the named session/tab without switching selection.
+
 - **Mac Settings parity:** colored category pictograms, a shared Back/Forward capsule, window-local Settings search/history, Tabs and Panes subpages, and visual previews of implemented appearance, tab, pane, font/theme and notification choices. Browsing previews preserves preferences and server programs. Pane actions now share a consistent icon family.
 - **Stable program icons:** switching sidebar or toolbar tabs updates icon tint immediately instead of replaying a color fade. Regression coverage checks intermediate-frame color, geometry and opacity, including repeated selection.
 - **Stable session rows:** switching between sidebar sessions keeps both terminal icons and labels mounted while their selection highlight moves. This also covers Top tab position, whose session icons use a separate path from program icons on individual tabs.

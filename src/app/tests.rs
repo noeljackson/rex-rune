@@ -32,6 +32,8 @@ mod remote_tests;
 mod remote_workspace_tests;
 #[path = "settings_tests.rs"]
 mod settings_tests;
+#[path = "sidebar_tests.rs"]
+mod sidebar_tests;
 #[path = "tab_tests.rs"]
 mod tab_tests;
 #[path = "wiring_tests.rs"]
@@ -3237,6 +3239,7 @@ fn sidebar_session_icons_and_labels_do_not_remount_when_selection_moves() {
             .into_iter()
             .filter(|e| {
                 matches!(e.role, "icon" | "text")
+                    && !e.path.contains("/session-close:")
                     && ["s", "other"]
                         .iter()
                         .any(|id| e.path.contains(&format!("session:0:{id}/")))
@@ -3247,7 +3250,7 @@ fn sidebar_session_icons_and_labels_do_not_remount_when_selection_moves() {
     assert_eq!(before.iter().filter(|e| e.role == "icon").count(), 2);
     assert_eq!(before.iter().filter(|e| e.role == "text").count(), 4);
     // Native acceptance clicks these session rows in Top tab position.
-    for (id, y) in [("s", 184.), ("other", 218.)] {
+    for (id, y) in [("s", 183.), ("other", 215.)] {
         let row = rt
             .elements()
             .into_iter()
@@ -3357,6 +3360,7 @@ fn sidebar_program_icons_stay_present_and_stationary_through_tab_selection() {
                         && e.role == "icon"
                         && if sidebar {
                             e.path.contains("sidebar-tab:0:s:")
+                                && !e.path.contains("/sidebar-tab-close:")
                         } else {
                             e.path.contains("/tab-icon:")
                         }
