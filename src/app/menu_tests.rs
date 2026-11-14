@@ -336,7 +336,16 @@ fn tooltips_and_hints_follow_a_rebound_or_removed_shortcut() {
     );
     assert_eq!(help(&rt, "new-tab"), "New tab · Ctrl Shift T");
     assert_eq!(help(&rt, "settings"), "Settings · Ctrl ,");
-    assert_eq!(element_text(&rt, "session-search-keys"), ["Ctrl", "K"]);
+    assert!(
+        rt.elements()
+            .iter()
+            .find(|e| e.key.as_deref() == Some("session-search"))
+            .unwrap()
+            .help
+            .as_deref()
+            .unwrap()
+            .contains("Ctrl K")
+    );
 
     rebind(
         &mut rt,
@@ -352,7 +361,16 @@ fn tooltips_and_hints_follow_a_rebound_or_removed_shortcut() {
         help(&rt, "identity"),
         "Choose session · test-0 · Switch session · Ctrl J"
     );
-    assert_eq!(element_text(&rt, "session-search-keys"), ["Ctrl", "J"]);
+    assert!(
+        rt.elements()
+            .iter()
+            .find(|e| e.key.as_deref() == Some("session-search"))
+            .unwrap()
+            .help
+            .as_deref()
+            .unwrap()
+            .contains("Ctrl J")
+    );
     assert_eq!(help(&rt, "new-tab"), "New tab · Ctrl B, C");
     assert_eq!(
         help(&rt, "commands"),
@@ -393,7 +411,13 @@ fn tooltips_and_hints_follow_a_rebound_or_removed_shortcut() {
         "Choose session · test-0 · Switch session"
     );
     assert!(
-        element_text(&rt, "session-search-keys").is_empty(),
+        rt.elements()
+            .iter()
+            .find(|e| e.key.as_deref() == Some("session-search"))
+            .unwrap()
+            .help
+            .as_deref()
+            == Some("Find a session"),
         "no hint for an unbound switcher"
     );
     std::fs::remove_file(&rt.state.settings_path).ok();

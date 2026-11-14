@@ -1809,7 +1809,7 @@ async fn after_request(
 ) -> Result<()> {
     shared.update(|m| m.notice = None);
     if let Some(id) = session {
-        // Destroying a session, or closing its last tab, ends it: nothing to re-read.
+        // A destroyed session is gone; a plain close_window can leave an empty session.
         match refresh(control, shared, state, id).await {
             Err(error)
                 if matches!(

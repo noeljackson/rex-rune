@@ -34,3 +34,5 @@ SSH attachment uses OpenSSH socket forwarding. If SSH succeeds but finds no defa
 ## Out of scope for now
 
 Complete Kitty graphics, distribution packages, and screen-reader support for the terminal itself. Rune's AT-SPI tree is on and names the chrome, but it has not been tried with a screen reader, and the terminal pane exposes only visible text as plain labels (no caret, selection or focus). See the README's Accessibility section and its list of unvalidated areas.
+
+Session names identify collections of terminal tabs. The sidebar always presents hosts, session groups and their terminal tabs, with Close tab on terminal rows. An explicit new session starts with one shell. Closing the final tab closes its session; closing an application window preserves server programs. Attachment never creates a replacement session or repairs/destroys another client’s empty state.

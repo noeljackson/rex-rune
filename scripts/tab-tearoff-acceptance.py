@@ -445,7 +445,7 @@ def run():
                 xlib.XCloseDisplay(display)
 
         sidebar = os.environ.get("REX_ACCEPTANCE_TABS") == "sidebar"
-        start = (100, 210) if sidebar else (270, 26)
+        start = (100, 131) if sidebar else (270, 26)
         finish = (400, 220) if sidebar else (300, 160)
         if os.environ.get("REX_ACCEPTANCE_BACKEND") != "wayland":
             # Beyond the native source, near the private display's bottom-right.

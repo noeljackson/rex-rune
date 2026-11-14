@@ -77,27 +77,18 @@ fn the_window_title_leads_with_the_tab_on_screen() {
 }
 
 #[test]
-fn the_sidebar_counts_tabs_only_above_one() {
+fn sidebar_names_session_groups_instead_of_counting_tabs() {
     let (mut ws, _rx) = tabbed_workspace("single");
-    ws.sidebar.toggle();
-    let model = &mut ws.hosts[0].model;
-    model.sessions = vec![session("s"), session("lone")];
-    model.views.insert(
-        "lone".into(),
-        serde_json::from_value(json!({
-            "revision": 1, "session_id": "lone", "active_window_id": "w",
-            "windows": [{"window_id": "w", "focused_block_id": "block:w",
-                "layers": [{"kind": "tiled", "blocks": [{"block_id": "block:w"}]}]}]
-        }))
-        .expect("a view"),
-    );
+    ws.sidebar.set_open(true);
     let rt = runtime(ws);
-    assert!(has(&rt, "session:0:s") && has(&rt, "session:0:lone"));
-    assert_eq!(element_text(&rt, "session-count:0:s"), ["2"]);
-    assert!(
-        !has(&rt, "session-count:0:lone"),
-        "one tab is what a session has: no badge"
-    );
+    assert!(has(&rt, "session-group:0:s"));
+    assert!(has(&rt, "sidebar-tab:0:s:single"));
+    assert!(has(&rt, "sidebar-tab:0:s:split"));
+    assert!(!rt.elements().iter().any(|e| {
+        e.key
+            .as_deref()
+            .is_some_and(|k| k.starts_with("session-count:"))
+    }));
     std::fs::remove_file(&rt.state.settings_path).ok();
 }
 

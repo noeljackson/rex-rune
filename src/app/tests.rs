@@ -32,6 +32,8 @@ mod remote_tests;
 mod remote_workspace_tests;
 #[path = "settings_tests.rs"]
 mod settings_tests;
+#[path = "sidebar_tests.rs"]
+mod sidebar_tests;
 #[path = "tab_tests.rs"]
 mod tab_tests;
 #[path = "wiring_tests.rs"]
@@ -3225,110 +3227,39 @@ fn pane_padding_controls_reach_zero_and_save() {
 }
 
 #[test]
-fn sidebar_session_icons_and_labels_do_not_remount_when_selection_moves() {
-    let (mut ws, _rx) = sidebar_tabs_workspace();
-    ws.settings.vertical_tabs = false;
-    let mut rt = runtime(ws);
-    for _ in 0..90 {
-        rt.frame(1. / 60.);
-    }
-    let foreground = |rt: &Runtime<Workspace>| {
-        rt.elements()
-            .into_iter()
-            .filter(|e| {
-                matches!(e.role, "icon" | "text")
-                    && ["s", "other"]
-                        .iter()
-                        .any(|id| e.path.contains(&format!("session:0:{id}/")))
-            })
-            .collect::<Vec<_>>()
-    };
-    let before = foreground(&rt);
-    assert_eq!(before.iter().filter(|e| e.role == "icon").count(), 2);
-    assert_eq!(before.iter().filter(|e| e.role == "text").count(), 4);
-    // Native acceptance clicks these session rows in Top tab position.
-    for (id, y) in [("s", 184.), ("other", 218.)] {
-        let row = rt
-            .elements()
-            .into_iter()
-            .find(|e| e.key.as_deref() == Some(&format!("session:0:{id}")))
-            .unwrap();
-        assert!((row.rect[1] + row.rect[3] / 2. - y).abs() < 0.001);
-    }
-    for (session, frames) in [
-        ("other", 1),
-        ("s", 2),
-        ("other", 1),
-        ("other", 24),
-        ("s", 24),
-    ] {
-        // Model selection also covers server acknowledgements, without the click helper's
-        // four-frame settling delay hiding the beginning of an entrance animation.
-        rt.update(|s, _| s.hosts[0].model.selected = Some(session.into()));
-        for frame in 0..frames {
+fn sidebar_session_groups_keep_labels_and_only_tabs_have_icons_and_close() {
+    for top in [false, true] {
+        let (mut ws, _rx) = sidebar_tabs_workspace();
+        ws.settings.vertical_tabs = !top;
+        let mut rt = runtime(ws);
+        for _ in 0..90 {
             rt.frame(1. / 60.);
-            let after = foreground(&rt);
-            assert_eq!(
-                after.len(),
-                before.len(),
-                "session {session}, frame {frame}"
-            );
-            for (a, b) in after.iter().zip(&before) {
-                assert_eq!(a.path, b.path, "session {session}, frame {frame}");
-                assert!(
-                    !a.exiting,
-                    "session {session}, frame {frame}: {} exits",
-                    a.path
-                );
-                assert!(
-                    !a.revealing,
-                    "session {session}, frame {frame}: {} reveals",
-                    a.path
-                );
-                assert!(
-                    (a.opacity - 1.).abs() < 0.001,
-                    "session {session}, frame {frame}: {} fades to {}",
-                    a.path,
-                    a.opacity
-                );
-                assert!(
-                    (a.scale - b.scale).abs() < 0.001,
-                    "session {session}, frame {frame}: {} scales",
-                    a.path
-                );
-                assert!(
-                    a.rect
-                        .iter()
-                        .zip(b.rect)
-                        .all(|(a, b)| (a - b).abs() < 0.001),
-                    "session {session}, frame {frame}: {} moves {:?} -> {:?}",
-                    a.path,
-                    b.rect,
-                    a.rect
-                );
-                if a.role == "icon" || a.key.as_deref() == Some("session-label") {
-                    let selected = a.path.contains(&format!("session:0:{session}/"));
-                    let expected = super::theme::rgb(if selected {
-                        if a.role == "icon" {
-                            super::theme::accent()
-                        } else {
-                            super::theme::ink()
-                        }
-                    } else {
-                        super::theme::muted()
-                    });
-                    let actual = a.text_color.expect("session foreground tint");
-                    assert!(
-                        (actual.r - expected.r).abs() < 0.001
-                            && (actual.g - expected.g).abs() < 0.001
-                            && (actual.b - expected.b).abs() < 0.001,
-                        "session {session}, frame {frame}: foreground tint fades {actual:?} -> {expected:?}"
-                    );
-                }
+        }
+        let groups = |rt: &Runtime<Workspace>| {
+            rt.elements()
+                .into_iter()
+                .filter(|e| !e.exiting && e.key.as_deref() == Some("session-label"))
+                .map(|e| (e.path, e.rect, e.opacity))
+                .collect::<Vec<_>>()
+        };
+        let before = groups(&rt);
+        assert_eq!(before.len(), 2);
+        assert!(!rt.elements().iter().any(|e| {
+            e.key
+                .as_deref()
+                .is_some_and(|k| k.starts_with("session-close:"))
+                || e.text.as_deref() == Some("Sessions")
+        }));
+        for session in ["other", "s", "other", "other", "s"] {
+            rt.update(|s, _| s.hosts[0].model.selected = Some(session.into()));
+            for _ in 0..18 {
+                rt.frame(1. / 60.);
+                assert_eq!(groups(&rt), before);
             }
         }
+        assert!(has(&rt, "sidebar-tab:0:s:single") && has(&rt, "sidebar-tab:0:other:other-second"));
+        std::fs::remove_file(&rt.state.settings_path).ok();
     }
-    std::fs::remove_file(&rt.state.settings_path).ok();
 }
 
 #[test]
@@ -3357,6 +3288,7 @@ fn sidebar_program_icons_stay_present_and_stationary_through_tab_selection() {
                         && e.role == "icon"
                         && if sidebar {
                             e.path.contains("sidebar-tab:0:s:")
+                                && !e.path.contains("/sidebar-tab-close:")
                         } else {
                             e.path.contains("/tab-icon:")
                         }
@@ -3634,7 +3566,10 @@ fn sidebar_tabs_replace_the_tab_strip_only_while_the_sidebar_is_open() {
         rt.frame(1. / 60.);
     }
     assert!(has(&rt, "tab-track"));
-    assert!(!has(&rt, "sidebar-tab:0:s:single"));
+    assert!(
+        has(&rt, "sidebar-tab:0:s:single"),
+        "navigation tree keeps tabs even with a top strip"
+    );
     assert!(
         !Settings::load(&rt.state.settings_path)
             .unwrap()
@@ -3692,9 +3627,17 @@ fn views_are_prefetched_only_for_tabs_the_sidebar_lists() {
     ws.hosts[0].model.sessions.push(session("other"));
     ws.toggle_sidebar();
     let mut rt = runtime(ws);
-    assert_eq!(latest(&rx), None, "Top tab position loads nothing");
+    assert_eq!(
+        latest(&rx),
+        all,
+        "open navigation tree loads its terminal tabs in either tab position"
+    );
     rt.update(|s, _| s.set_vertical_tabs(true));
-    assert_eq!(latest(&rx), all);
+    assert_eq!(
+        latest(&rx),
+        None,
+        "tab strip placement does not change sidebar prefetch"
+    );
     for _ in 0..60 {
         rt.frame(1. / 60.);
     }
@@ -3718,7 +3661,7 @@ fn views_are_prefetched_only_for_tabs_the_sidebar_lists() {
         "a new session is listed, so it is loaded too"
     );
     rt.update(|s, _| s.set_vertical_tabs(false));
-    assert_eq!(latest(&rx), Some(vec![]));
+    assert_eq!(latest(&rx), None);
     std::fs::remove_file(&rt.state.settings_path).ok();
 }
 
