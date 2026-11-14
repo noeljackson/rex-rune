@@ -146,6 +146,9 @@ fn tab_track(s: &Workspace) -> El {
                 .preserve_focus_on_press(true)
                 .pointer_buttons([PointerButton::Middle])
                 .on_press_tx(move |s: &mut Workspace, tx: &mut Tx| {
+                    if tx.button() == PointerButton::Primary && s.tab_press_suppressed {
+                        return;
+                    }
                     // Middle-click closes, behind the same confirmation as Close tab.
                     if tx.button() == PointerButton::Middle {
                         s.perform(Intent::CloseWindow(press_id.clone()), tx);
@@ -421,4 +424,51 @@ impl Workspace {
         let [offset, max] = self.tab_pos.get();
         tx.scroll_to_x("tabs", (offset + step * direction as f32).clamp(0., max));
     }
+}
+
+/// An isolated tab has only its terminal title, pane controls and native view close.
+pub(super) const TERMINAL_BAR: f32 = 36.;
+pub(super) fn terminal(s: &Workspace) -> El {
+    let mut bar = row()
+        .key("terminal-window-bar")
+        .w_full()
+        .h(TERMINAL_BAR)
+        .px(8.)
+        .gap(6.)
+        .center_y()
+        .window_drag()
+        .child(chrome_button(
+            "close-terminal-window",
+            &CLOSE,
+            "Close window · server programs keep running",
+            28.,
+            |_: &mut Workspace, tx: &mut Tx| tx.close_window(),
+        ));
+    let block = s.focused_block();
+    let label = block
+        .as_deref()
+        .map(|b| s.pane_name(b))
+        .unwrap_or_else(|| "Terminal".into());
+    bar = bar
+        .child(glyph(program_icon(None), 15., rgb(muted())))
+        .child(
+            text(label)
+                .font(medium(12.5))
+                .color(rgb(ink()))
+                .truncate()
+                .min_w(0.)
+                .grow(1.),
+        );
+    if let (Some(window), Some(block)) = (s.model().window(), block)
+        && !super::pane_header::rows(s, window)
+    {
+        bar = bar.child(super::pane_header::actions(
+            s,
+            window,
+            &block,
+            s.viewport[0] / s.ui_scale(),
+            true,
+        ));
+    }
+    bar
 }

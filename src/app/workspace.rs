@@ -80,6 +80,7 @@ pub struct Workspace {
     zoom_notice: Option<u64>,
     pub drag: Option<DividerDrag>,
     pub(super) tab_drag: Option<super::desktop::TabDrag>,
+    pub(super) tab_press_suppressed: bool,
     pub(super) floating_drag: Option<super::floating::DragState>,
     /// Keys whose press went to a terminal; only their releases follow.
     pub forwarded: HashSet<super::bindings::Identity>,
@@ -261,6 +262,7 @@ impl Workspace {
             zoom_notice: None,
             drag: None,
             tab_drag: None,
+            tab_press_suppressed: false,
             floating_drag: None,
             forwarded: HashSet::new(),
             bindings: Default::default(),
@@ -668,7 +670,7 @@ impl Workspace {
     /// do: once per pane while this window has focus, and again each time it comes forward.
     /// Another client taking a pane back is left alone until then (or until input here).
     pub fn claim_visible(&mut self) {
-        if !self.window_focused || self.detached_here() {
+        if !self.window_focused || self.detached_here() || !self.terminal_contents_available() {
             return;
         }
         let model = &self.hosts[self.active].model;
@@ -1000,7 +1002,7 @@ impl Workspace {
     }
 
     pub fn focused_block(&self) -> Option<String> {
-        if self.detached_here() {
+        if self.detached_here() || !self.terminal_contents_available() {
             return None;
         }
         let block = self.model().focused()?;
@@ -1016,7 +1018,7 @@ impl Workspace {
     }
 
     pub(super) fn visible_terminal_keys(&self) -> HashSet<(HostId, String)> {
-        if self.detached_here() {
+        if self.detached_here() || !self.terminal_contents_available() {
             return HashSet::new();
         }
         self.model()
@@ -1285,6 +1287,9 @@ impl Workspace {
     }
 
     pub fn activate_host(&mut self, host: usize, tx: &mut Tx) {
+        if self.terminal_window() {
+            return;
+        }
         self.bindings.sequence.clear();
         self.observe_navigation();
         self.navigation.cancel();
@@ -1304,7 +1309,11 @@ impl Workspace {
         for index in 0..self.hosts.len() {
             self.send(
                 index,
-                HostCommand::Visibility(index == self.active && !self.detached_here()),
+                HostCommand::Visibility(
+                    index == self.active
+                        && !self.detached_here()
+                        && self.terminal_contents_available(),
+                ),
             );
         }
     }
@@ -1336,11 +1345,28 @@ impl Workspace {
     }
 
     pub fn toggle_sidebar(&mut self) {
+        if self.terminal_window() {
+            return;
+        }
         self.sidebar.toggle();
         self.save();
     }
 
     pub fn perform(&mut self, action: Intent, tx: &mut Tx) {
+        if (self.terminal_window()
+            && matches!(
+                action,
+                Intent::CreateOn(..)
+                    | Intent::ChooseHost(_)
+                    | Intent::Window(_, super::tabs::TabAction::New)
+            ))
+            || action
+                .shortcut()
+                .is_some_and(|(name, _)| !self.terminal_action_allowed(name))
+        {
+            self.inform("This terminal window stays on its own tab. Use the main window to navigate or create tabs.");
+            return;
+        }
         // Applying a theme goes back to Settings itself.
         if !action.opens_followup()
             && !matches!(

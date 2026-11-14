@@ -75,14 +75,34 @@ pub(crate) fn view(s: &Workspace, cx: &mut Cx<Workspace>) -> El {
     let scale = s.ui_scale();
     let viewport = s.viewport.map(|v| v / scale);
     let mut body = row().key("body").grow(1.).w_full().min_h(0.);
-    if s.sidebar.is_open() {
+    if s.sidebar.is_open() && !s.terminal_window() {
         body = body
             .child(sidebar::sidebar(s, cx))
             .child(sidebar::sidebar_edge(s));
     }
     // Device pixels per point, so terminal box drawing lands on whole pixels.
-    body = body
-        .child(desktop::placeholder(s).unwrap_or_else(|| panes::area(s, cx.env().scale * scale)));
+    body = body.child(if !s.terminal_contents_available() {
+        el().key("terminal-unavailable")
+            .grow(1.)
+            .h_full()
+            .center()
+            .child(
+                rune::text(if s.model().connected {
+                    "This terminal tab is no longer available."
+                } else {
+                    "Connecting to terminal…"
+                })
+                .font(ui(13.))
+                .color(rgb(muted())),
+            )
+    } else {
+        desktop::placeholder(s).unwrap_or_else(|| panes::area(s, cx.env().scale * scale))
+    });
+    let bar_height = if s.terminal_window() {
+        toolbar::TERMINAL_BAR
+    } else {
+        TOOLBAR
+    };
     let mut root = el()
         .key("root")
         .absolute(0., 0.)
@@ -95,10 +115,14 @@ pub(crate) fn view(s: &Workspace, cx: &mut Cx<Workspace>) -> El {
             col()
                 .absolute(0., 0.)
                 .size(viewport[0], viewport[1])
-                .pt(TOOLBAR)
+                .pt(bar_height)
                 .child(body),
         )
-        .child(toolbar::toolbar(s).absolute(0., 0.));
+        .child(if s.terminal_window() {
+            toolbar::terminal(s).absolute(0., 0.)
+        } else {
+            toolbar::toolbar(s).absolute(0., 0.)
+        });
     if let Some(toasts) = dialogs::toasts(s) {
         root = root.child(toasts);
     }

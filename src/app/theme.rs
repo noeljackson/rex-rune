@@ -442,6 +442,18 @@ icon!(
     r#"rect x="3" y="4" width="14" height="12" rx="3""#,
     r#"path d="M8 4v12""#
 );
+icon!(
+    SPLIT_LEFT,
+    "rex-split-left",
+    r#"rect x="3" y="4.5" width="14" height="11" rx="2""#,
+    r#"path d="M10 4.5v11M8 10H5m2-2-2 2 2 2""#
+);
+icon!(
+    SPLIT_UP,
+    "rex-split-up",
+    r#"rect x="3" y="4.5" width="14" height="11" rx="2""#,
+    r#"path d="M3 10h14M10 9V6m-2 2 2-2 2 2""#
+);
 // The pane header's actions: a pane cut in two side by side, cut in two one over the other,
 // grown to its tab's corners, and brought back from them.
 icon!(

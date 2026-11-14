@@ -1024,6 +1024,14 @@ impl Workspace {
         commands.extend(self.view_commands());
         commands.extend(self.app_commands());
         for command in &mut commands {
+            if command
+                .entry
+                .action
+                .shortcut()
+                .is_some_and(|(name, _)| !self.terminal_action_allowed(name))
+            {
+                command.entry.enabled = false;
+            }
             if self.detached_here()
                 && command
                     .entry

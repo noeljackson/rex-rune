@@ -28,6 +28,9 @@ pub(crate) struct TabDrag {
     target: TabTarget,
     host: HostId,
     epoch: u64,
+    origin: (HostId, Option<String>, Option<String>),
+    sidebar: bool,
+    preview: bool,
 }
 
 pub(super) fn broadcast(shared: &Arc<Mutex<Desktop>>) {
@@ -47,6 +50,60 @@ pub(super) fn broadcast(shared: &Arc<Mutex<Desktop>>) {
 }
 
 impl Workspace {
+    pub(crate) fn terminal_window(&self) -> bool {
+        self.desktop.as_ref().is_some_and(|d| d.terminal.is_some())
+    }
+
+    pub(crate) fn terminal_contents_available(&self) -> bool {
+        self.desktop
+            .as_ref()
+            .and_then(|d| d.terminal.as_ref())
+            .is_none_or(|key| {
+                self.settings.hosts[self.active].endpoint == key.endpoint
+                    && self.model().selected.as_ref() == Some(&key.session)
+                    && self.model().window().and_then(|w| w.window_id.as_ref()) == Some(&key.tab)
+            })
+    }
+
+    pub(crate) fn terminal_action_allowed(&self, name: &str) -> bool {
+        if !self.terminal_window() {
+            return true;
+        }
+        if !self.terminal_contents_available()
+            && (name.starts_with("pane.")
+                || name.starts_with("client.tab.")
+                || name == "client.close")
+        {
+            return false;
+        }
+        if name.starts_with("client.tab.") {
+            return matches!(
+                name,
+                "client.tab.rename"
+                    | "client.tab.close"
+                    | "client.tab.mute"
+                    | "client.tab.go_to_window"
+                    | "client.tab.restore_to_window"
+            );
+        }
+        !name.starts_with("client.host.")
+            && !name.starts_with("client.history.")
+            && !name.starts_with("client.sidebar.")
+            && !name.starts_with("session.")
+    }
+
+    pub(crate) fn terminal_visit_allowed(&self, visit: &crate::app::navigation::Visit) -> bool {
+        self.desktop
+            .as_ref()
+            .and_then(|d| d.terminal.as_ref())
+            .is_none_or(|key| {
+                self.host_index(visit.host)
+                    .is_some_and(|host| self.settings.hosts[host].endpoint == key.endpoint)
+                    && visit.session == key.session
+                    && visit.window.as_ref() == Some(&key.tab)
+            })
+    }
+
     pub(super) fn detach_key(&self, target: &TabTarget) -> Option<TabKey> {
         let host = self.hosts.get(target.host)?;
         if !host.model.connected
@@ -125,7 +182,7 @@ impl Workspace {
         }
         d.placeholder = held;
         self.bindings.sequence.clear();
-        self.tab_drag = None;
+        self.cancel_tab_drag();
         self.floating_drag = None;
         self.drag = None;
         self.update_visibility();
@@ -219,7 +276,7 @@ impl Workspace {
             .as_ref()
             .is_some_and(|drag| !self.tab_drag_valid(drag));
         if cancelled {
-            self.tab_drag = None;
+            self.cancel_tab_drag();
         }
         let mut changed = removed | cancelled | self.refresh_detached_visibility();
         let opening = self.desktop.as_mut().and_then(|d| d.local_opening.take());
@@ -349,26 +406,49 @@ impl Workspace {
             })
     }
 
+    fn drag_origin(&self) -> (HostId, Option<String>, Option<String>) {
+        (
+            self.hosts[self.active].id,
+            self.model().selected.clone(),
+            self.model().window().and_then(|w| w.window_id.clone()),
+        )
+    }
+
     fn tab_drag_valid(&self, drag: &TabDrag) -> bool {
         self.window_focused
             && self.panel.is_none()
+            && self.drag_origin() == drag.origin
             && self.host_index(drag.host).is_some_and(|h| {
-                h == self.active
-                    && h == drag.target.host
+                h == drag.target.host
                     && self.hosts[h].model.connected
                     && self.hosts[h].model.connection_epoch == drag.epoch
-                    && self.model().selected.as_ref() == Some(&drag.target.session)
             })
             && self.detach_key(&drag.target).is_some()
     }
 
+    pub(crate) fn cancel_tab_drag(&mut self) {
+        self.tab_drag = None;
+        // The native preview is cleared on release/blur too, including a stale captured row.
+        if let Some(native) = self.desktop.as_ref().and_then(|d| d.native.as_ref()) {
+            native.clear_drag_preview();
+        }
+    }
+
     pub(crate) fn drag_tab(&mut self, target: &TabTarget, gesture: &Drag, tx: &mut Tx) {
+        self.drag_tab_from(target, gesture, false, tx);
+    }
+
+    pub(crate) fn drag_sidebar_tab(&mut self, target: &TabTarget, gesture: &Drag, tx: &mut Tx) {
+        self.drag_tab_from(target, gesture, true, tx);
+    }
+
+    fn drag_tab_from(&mut self, target: &TabTarget, gesture: &Drag, sidebar: bool, tx: &mut Tx) {
         if gesture.phase == Phase::Down {
-            self.tab_drag = None;
+            self.tab_press_suppressed = false;
+            self.cancel_tab_drag();
             if tx.button() != PointerButton::Primary
                 || self.panel.is_some()
-                || self.desktop.is_none()
-                || self.detach_key(target).is_none()
+                || !self.can_detach_tab(target)
             {
                 return;
             }
@@ -376,23 +456,51 @@ impl Workspace {
                 target: target.clone(),
                 host: self.hosts[target.host].id,
                 epoch: self.hosts[target.host].model.connection_epoch,
+                origin: self.drag_origin(),
+                sidebar,
+                preview: false,
             });
+        }
+        if gesture.dx.hypot(gesture.dy) / self.ui_scale() >= 16. {
+            self.tab_press_suppressed = true;
         }
         let Some(drag) = &self.tab_drag else {
             return;
         };
-        let valid = self.tab_drag_valid(drag);
-        if !valid || gesture.cancelled() {
-            self.tab_drag = None;
+        if !self.tab_drag_valid(drag) || gesture.cancelled() {
+            self.cancel_tab_drag();
             return;
         }
+        let moved = gesture.dx.hypot(gesture.dy) / self.ui_scale() >= 16.;
+        if gesture.phase == Phase::Move && moved && !drag.preview {
+            let heading = if drag.sidebar {
+                format!(
+                    "sidebar-tab:{}:{}:{}",
+                    target.host, target.session, target.window
+                )
+            } else {
+                format!("tab:{}", target.window)
+            };
+            // Capture terminal pixels only when this is the tab actually on screen.
+            let content =
+                (self.current_tab_key() == self.detach_key(target)).then(|| "panes".to_owned());
+            if let Some(native) = self.desktop.as_ref().and_then(|d| d.native.as_ref()) {
+                native.drag_preview(content, heading);
+            }
+            self.tab_drag.as_mut().unwrap().preview = true;
+        }
         if gesture.phase == Phase::Up {
-            let target = self.tab_drag.take().unwrap().target;
+            let drag = self.tab_drag.take().unwrap();
+            self.cancel_tab_drag();
             let [x, y] = gesture.window_point().map(|v| v / self.ui_scale());
-            let width = self.viewport[0] / self.ui_scale();
-            let outside = y > TOOLBAR + 12. || y < -12. || x < -12. || x > width + 12.;
-            if outside && gesture.dx.hypot(gesture.dy) / self.ui_scale() >= 16. {
-                self.open_desktop_target(Some(target), None, gesture.screen_point(), tx);
+            let [width, height] = self.viewport.map(|v| v / self.ui_scale());
+            let outside = if drag.sidebar {
+                x > self.sidebar.width() + 12. || x < -12. || y < -12. || y > height + 12.
+            } else {
+                y > TOOLBAR + 12. || y < -12. || x < -12. || x > width + 12.
+            };
+            if outside && moved {
+                self.open_desktop_target(Some(drag.target), None, tx);
             }
         }
     }

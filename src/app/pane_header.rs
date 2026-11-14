@@ -1,4 +1,4 @@
-//! When a pane has a header and what its trailing buttons do: Split right, Split down, Zoom
+//! When a pane has a header and what its trailing buttons do: Split left/right/up/down, Zoom
 //! and Close, each on the pane the header belongs to, focused or not.
 //!
 //! Settings → Interface → Pane headers decides where the header is. Auto follows the density
@@ -234,25 +234,22 @@ pub fn actions(s: &Workspace, window: &Window, block: &str, width: f32, lit: boo
             ));
     }
     if width >= ROOMY && !floating {
-        cluster = cluster
-            .child(button(
-                format!("pane-split-right:{block}"),
-                &SPLIT_RIGHT,
-                "Split right",
-                hint("Split right", "pane.split", json!({"direction": "right"})),
+        for (key, icon, way) in [
+            ("left", &SPLIT_LEFT, SplitWay::Left),
+            ("right", &SPLIT_RIGHT, SplitWay::Right),
+            ("up", &SPLIT_UP, SplitWay::Up),
+            ("down", &SPLIT_DOWN, SplitWay::Down),
+        ] {
+            cluster = cluster.child(button(
+                format!("pane-split-{key}:{block}"),
+                icon,
+                way.label(),
+                hint(way.label(), "pane.split", json!({"direction":way.arg()})),
                 lit,
                 false,
-                on(PaneAction::Split(SplitWay::Right)),
-            ))
-            .child(button(
-                format!("pane-split-down:{block}"),
-                &SPLIT_DOWN,
-                "Split down",
-                hint("Split down", "pane.split", json!({"direction": "down"})),
-                lit,
-                false,
-                on(PaneAction::Split(SplitWay::Down)),
+                on(PaneAction::Split(way)),
             ));
+        }
     }
     let zoom = if zoomed(window, block) {
         button(

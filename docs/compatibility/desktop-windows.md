@@ -29,10 +29,14 @@ programs. The last native window closing exits the process. Additional desktop
 windows are not restored automatically on restart; server tabs and floating layers
 remain server-owned and are restored when attached again.
 
-Toolbar tab tear-off, the tab-menu row and Commands → Move tab to new desktop window
+Toolbar and sidebar tab tear-off, the tab-menu row and Commands → Move tab to new desktop window
 share one captured target. A drag needs 16 pt of travel and a release outside the
-strip's 12 pt margin; cancellation or a changed host/session/tab/connection epoch
-aborts it. Ownership is published only when the new native view exists and has
+strip/sidebar's 12 pt margin; cancellation or a changed source context/target connection epoch
+aborts it. While held, a small native cursor card follows the pointer, including outside
+the source. It contains a frozen thumbnail of the currently rendered terminal, or
+only the tab heading for an unrendered tab; it never shows another tab's output.
+The native terminal window opens only on release; the window manager places it.
+Ownership is published only when the new native view exists and has
 attached to that exact server tab. An opening failure or five-second deadline closes
 only the unfinished view, leaves the source usable and never replays the request.
 
@@ -49,9 +53,15 @@ an XDG token from the focused source's recent real pointer/key press, with its s
 and serial; the compositor decides focus. Tokens are asynchronous, single-use and
 expire after two seconds. Closed targets are never recreated.
 
+Detached windows contain the captured tab's terminal panes and a compact title bar
+with pane controls, without a sidebar, host/session selector or tab strip. Local and
+remote navigation and new-tab actions are refused there. A removed tab shows an
+unavailable message rather than another terminal. New desktop window still opens
+a full workspace with independent navigation. Pane headers expose left, right, up
+and down new splits; dragging existing terminals together to combine is deferred.
+
 Restore assigns ownership to the requesting view. A detached destination closes
-only while still dedicated to that tab and without an open dialog. Once it has
-navigated to another known tab it stays open, even if it later returns. Closing an
+only while still dedicated to that tab and without an open dialog. Closing an
 owner makes other views usable again; closing a source leaves the owner running.
 Known server tab/session removal clears ownership. Disconnected or unattached views
 alone are not evidence of removal. Ownership is process-local and is not persisted.

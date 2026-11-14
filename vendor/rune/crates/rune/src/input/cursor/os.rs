@@ -64,6 +64,11 @@ impl OsCursor {
         }
     }
 
+    pub(crate) fn invalidate(&mut self) {
+        self.applied = (false, Cursor::Default);
+        self.scale = 0.0;
+    }
+
     /// When to set the image cursor again: while one holds the pointer, on macOS.
     pub(crate) fn reassert_at(&self, now: Instant) -> Option<Instant> {
         (cfg!(target_os = "macos") && holds_image(self.applied)).then(|| now + REASSERT)

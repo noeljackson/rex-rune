@@ -271,6 +271,10 @@ pub fn rename_key(s: &mut Workspace, ev: &KeyEvent, tx: &mut Tx) -> bool {
 }
 
 pub fn on_key(s: &mut Workspace, ev: &KeyEvent, tx: &mut Tx) -> bool {
+    if ev.key == Key::Escape && s.tab_drag.is_some() {
+        s.cancel_tab_drag();
+        return true;
+    }
     if let Some(panel) = &s.panel {
         if panel.is_list() && tx.focused().is_none() {
             return list_key(s, ev, tx);

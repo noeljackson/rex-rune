@@ -106,10 +106,15 @@ Chrome uses Inter (bundled with the kit) in 10–13 pt steps, weights about 450 
 - Don't add status dots, "Connected" labels, terminal size readouts or keyboard-hint footers.
 - Don't show illustrative sessions, layouts or captures as shipped runtime state.
 
-A toolbar tab dragged at least 16 pt and released outside the strip (12 pt margin)
-opens its existing server tab in a native desktop window. A cancelled or stale drag
+A toolbar or sidebar tab dragged at least 16 pt shows a small frozen terminal
+preview carried by the native pointer. Releasing outside the strip or sidebar
+(12 pt margin) opens its existing server tab in an isolated terminal window with a
+compact title/pane-control bar. It has no workspace navigation. An unrendered tab's
+preview shows only its heading. A cancelled or stale drag
 does nothing. The source keeps its tab pill and replaces the pane area with a calm,
 centered ownership message: **This tab is open in another window**, a primary
 **Go to window** pill and a secondary **← Restore to this window** pill. There is
 no terminal grid or input behind the placeholder. Native focus still follows the
 window system; Wayland activation uses the local interaction's real input serial.
+Pane headers expose new splits to the left, right, up and down. Combining existing
+terminals by dragging them together is deferred.

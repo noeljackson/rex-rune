@@ -405,7 +405,7 @@ impl Workspace {
         let host = self.settings.hosts[target.host].label.clone();
         match action {
             TabAction::Detach => {
-                self.open_desktop_target(Some(target), None, None, tx);
+                self.open_desktop_target(Some(target), None, tx);
             }
             TabAction::Rename => {
                 let name = target.name.clone();
