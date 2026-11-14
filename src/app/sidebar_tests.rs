@@ -56,9 +56,7 @@ fn sidebar_capsules_reveal_close_without_moving_the_foreground() {
             let hidden = info(&rt, close);
             if scale == 1. {
                 assert!(
-                    (hidden.rect[0] + hidden.rect[2] / 2. - if vertical { 209. } else { 207. })
-                        .abs()
-                        < 0.01,
+                    (hidden.rect[0] + hidden.rect[2] / 2. - 213.).abs() < 0.01,
                     "native close x: {:?}",
                     hidden.rect
                 );

@@ -187,10 +187,10 @@ def run():
         assert Path(f"/proc/{pid}/stat").read_text().split()[21]==start
         # The capsule's X must act on its own tab without selecting that tab.
         close_y=209+32*(1-source_index)
-        desktop.x("mousemove","--window",window,209,close_y)
+        desktop.x("mousemove","--window",window,213,close_y)
         time.sleep(.3)
         capture_pointer("sidebar-tab-close-hover")
-        desktop.x("mousemove","--window",window,209,close_y)
+        desktop.x("mousemove","--window",window,213,close_y)
         desktop.x("click",1)
         time.sleep(.3)
         capture_pointer("sidebar-tab-close-confirmation")
@@ -257,10 +257,10 @@ def run():
         # target. The two original shells must survive cancellation and closure.
         disposable=api("session.create",label="close-target",initial_windows=[{"window_label":"disposable","layout":shell}])["session_id"]
         time.sleep(.6)
-        desktop.x("mousemove","--window",window,207,247)
+        desktop.x("mousemove","--window",window,213,247)
         time.sleep(.3)
         capture_pointer("sidebar-session-close-hover")
-        desktop.x("mousemove","--window",window,207,247)
+        desktop.x("mousemove","--window",window,213,247)
         desktop.x("click",1)
         time.sleep(.3)
         capture_pointer("sidebar-session-close-confirmation")
@@ -269,7 +269,7 @@ def run():
         desktop.key("Return")  # Keep running is the default.
         time.sleep(.3)
         assert len(api("session.list")["sessions"])==3
-        desktop.x("mousemove","--window",window,207,247)
+        desktop.x("mousemove","--window",window,213,247)
         desktop.x("click",1)
         time.sleep(.3)
         desktop.key("Tab")  # Explicitly choose Close and end programs.

@@ -49,7 +49,7 @@ fn close_button(
         } else {
             Cursor::Default
         })
-        .child(glyph(&CLOSE, 13., rgb(muted())));
+        .child(glyph(&CLOSE, 18., rgb(muted())));
     if enabled {
         button.on_press_tx(on_press)
     } else {
@@ -198,7 +198,8 @@ fn session_row(s: &Workspace, index: usize, id: &str, label: &str) -> El {
         } else {
             SESSION_ROW
         })
-        .px(10.)
+        .pl(10.)
+        .pr(4.)
         .gap(10.)
         .center_y()
         .radius(radius)
@@ -330,7 +331,7 @@ fn window_row(s: &Workspace, index: usize, session: &str, tab: &rexrs::api::sess
         .h(SESSION_ROW)
         .ml(12.)
         .pl(10.)
-        .pr(8.)
+        .pr(4.)
         .gap(8.)
         .center_y()
         .radius(ROW_RADIUS)
