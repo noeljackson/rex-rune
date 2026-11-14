@@ -206,7 +206,8 @@ def run():
         stop(app)
         reference=api("session.create",label="reference-session",initial_windows=[{"window_label":"reference", "layout":shell} for _ in range(2)])["session_id"]
         reference_view=api("session.view",session_id=reference)
-        reference_block=next(w["focused_block_id"] for w in reference_view["windows"] if w["window_id"]==reference_view["active_window_id"])
+        reference_block=reference_view["windows"][0]["focused_block_id"]
+        tab_indices={sid:source_index,reference:0}
         def block_ids(session):
             return {b["block_id"] for w in api("session.view",session_id=session)["windows"] for l in w["layers"] for b in l["blocks"]}
         reference_blocks=block_ids(reference)
@@ -226,7 +227,7 @@ def run():
             raise AssertionError("session has no tab in the navigation tree")
         def select_session(session, name):
             # Header/row geometry is pinned in the headless sidebar regression.
-            desktop.x("mousemove","--window",window,100,tab_y(session))
+            desktop.x("mousemove","--window",window,100,tab_y(session,tab_indices[session]))
             desktop.x("click",1)
             # X11's convenience capture settles first; capture directly so these
             # images also show the beginning of the foreground transition.
