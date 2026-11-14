@@ -177,7 +177,7 @@ def run():
         capture("pane-controls")
         # Real sidebar switching complements the frame-by-frame tint/geometry regression.
         for i,index in enumerate([1-source_index,source_index,1-source_index,source_index,source_index]):
-            desktop.x("mousemove","--window",window,100,209+32*index)
+            desktop.x("mousemove","--window",window,100,131+32*index)
             desktop.x("click",1)
             desktop.capture(window,f"sidebar-switch-{i}-early")
             wait(lambda:view()["active_window_id"]==original["windows"][index]["window_id"],"sidebar click did not select its tab")
@@ -186,7 +186,7 @@ def run():
         assert {b["block_id"] for w in view()["windows"] for l in w["layers"] for b in l["blocks"]}==original_blocks
         assert Path(f"/proc/{pid}/stat").read_text().split()[21]==start
         # The capsule's X must act on its own tab without selecting that tab.
-        close_y=209+32*(1-source_index)
+        close_y=131+32*(1-source_index)
         desktop.x("mousemove","--window",window,213,close_y)
         time.sleep(.3)
         capture_pointer("sidebar-tab-close-hover")
@@ -201,9 +201,8 @@ def run():
         assert {b["block_id"] for w in view()["windows"] for l in w["layers"] for b in l["blocks"]}==original_blocks
         print("PASS Settings/search/history/previews and tab-close cancellation preserve programs and terminal input",flush=True)
 
-        # Session rows in Top tab position have their own terminal glyph. Inserting
-        # their matched selection layer used to remount both rows' icon and label.
-        # This is a different path from switching windows inside one session above.
+        # The navigation tree remains host -> session -> terminal tabs even when
+        # the optional top tab strip is shown.
         stop(app)
         reference=api("session.create",label="reference-session",initial_windows=[{"window_label":"reference", "layout":shell} for _ in range(2)])["session_id"]
         reference_view=api("session.view",session_id=reference)
@@ -217,10 +216,17 @@ def run():
         app,window=desktop.launch(sid,config,extra_env=launch_env,log=(work/"session-app.log").open("w"),binary=BINARY)
         owned.append(app)
         wait(ready,"reopened client did not attach")
-        order=[s["session_id"] for s in api("session.list")["sessions"]]
+        def tab_y(session,index=0):
+            y=90
+            for entry in api("session.list")["sessions"]:
+                windows=api("session.view",session_id=entry["session_id"]).get("windows",[])
+                if not windows: continue
+                if entry["session_id"]==session: return y+41+32*index
+                y+=26+32*len(windows)
+            raise AssertionError("session has no tab in the navigation tree")
         def select_session(session, name):
-            # Header/row geometry is pinned in the headless session regression.
-            desktop.x("mousemove","--window",window,100,183+32*order.index(session))
+            # Header/row geometry is pinned in the headless sidebar regression.
+            desktop.x("mousemove","--window",window,100,tab_y(session))
             desktop.x("click",1)
             # X11's convenience capture settles first; capture directly so these
             # images also show the beginning of the foreground transition.
@@ -230,7 +236,7 @@ def run():
                 else:
                     subprocess.run(["import","-window",str(window),str(work/"captures"/(name+suffix+".png"))],env=desktop.env,check=True,timeout=10)
             frame("-early")
-            wait(lambda:json.loads(config.read_text()).get("sessions",{}).get(endpoint)==session,"session row did not select its session")
+            wait(lambda:json.loads(config.read_text()).get("sessions",{}).get(endpoint)==session,"terminal tab did not select its own session")
             time.sleep(.5)
             frame("-settled")
         select_session(reference,"session-reference")
@@ -253,33 +259,53 @@ def run():
         desktop.key("Return")
         wait(lambda:"\nAFTER_SESSION_SWITCH\n" in content(),"returning to the original session lost terminal input")
         print("PASS two-session sidebar switching in Top tab position preserves both original programs",flush=True)
-        # A third disposable session verifies the trailing session X's confirmed
-        # target. The two original shells must survive cancellation and closure.
-        disposable=api("session.create",label="close-target",initial_windows=[{"window_label":"disposable","layout":shell}])["session_id"]
-        time.sleep(.6)
-        desktop.x("mousemove","--window",window,213,247)
+        # Create through the actual host + control: exactly one shell tab, then
+        # its Close tab X must close the collection when no tabs remain.
+        before_sessions={s["session_id"] for s in api("session.list")["sessions"]}
+        desktop.x("mousemove","--window",window,216,74)
+        desktop.x("click",1)
+        wait(lambda:len(api("session.list")["sessions"])==3,"host + did not create a session")
+        disposable=next(s["session_id"] for s in api("session.list")["sessions"] if s["session_id"] not in before_sessions)
+        created_view=api("session.view",session_id=disposable)
+        assert len(created_view.get("windows",[]))==1,"new session must start with one shell tab"
+        created_blocks=[b for w in created_view["windows"] for l in w["layers"] for b in l["blocks"]]
+        assert len(created_blocks)==1 and created_blocks[0]["flavor"]=="com.superlogical.terminal.shell"
+        wait(lambda:json.loads(config.read_text())["sessions"][endpoint]==disposable and ready(disposable),"new shell did not attach")
+        new_block=created_blocks[0]["block_id"]
+        def new_content():
+            return api("com.superlogical.terminal.format",session_id=disposable,block_id=new_block,args={"format":"text","trim":True})["content"]
+        wait(lambda:"$" in new_content(),"new session did not start its shell")
+        desktop.type("printf 'NEW_SESSION_PID=%s\\n' \"$$\"")
+        desktop.key("Return")
+        wait(lambda:re.search(r"NEW_SESSION_PID=(\d+)",new_content()),"new session shell did not accept input")
+        new_pid=int(re.search(r"NEW_SESSION_PID=(\d+)",new_content()).group(1))
+        assert new_pid not in (pid,reference_pid)
+        close_y=tab_y(disposable)
+        desktop.x("mousemove","--window",window,213,close_y)
         time.sleep(.3)
-        capture_pointer("sidebar-session-close-hover")
-        desktop.x("mousemove","--window",window,213,247)
+        capture_pointer("sidebar-last-tab-close-hover")
         desktop.x("click",1)
         time.sleep(.3)
-        capture_pointer("sidebar-session-close-confirmation")
+        capture_pointer("sidebar-last-tab-close-confirmation")
         assert len(api("session.list")["sessions"])==3
-        assert json.loads(config.read_text())["sessions"][endpoint]==sid
         desktop.key("Return")  # Keep running is the default.
         time.sleep(.3)
         assert len(api("session.list")["sessions"])==3
-        desktop.x("mousemove","--window",window,213,247)
+        desktop.x("mousemove","--window",window,213,close_y)
         desktop.x("click",1)
         time.sleep(.3)
-        desktop.key("Tab")  # Explicitly choose Close and end programs.
-        desktop.type(" ")  # Space activates the focused button; Return keeps running.
-        wait(lambda:disposable not in {s["session_id"] for s in api("session.list")["sessions"]},"confirmed sidebar session close did not remove its target")
+        desktop.key("Tab")
+        desktop.type(" ")
+        wait(lambda:disposable not in {s["session_id"] for s in api("session.list")["sessions"]},"closing last tab did not remove its session")
         assert block_ids(sid)==original_blocks and block_ids(reference)==reference_blocks
         assert Path(f"/proc/{pid}/stat").read_text().split()[21]==start
         assert Path(f"/proc/{reference_pid}/stat").read_text().split()[21]==reference_start
-        capture_pointer("sidebar-session-close-complete")
-        print("PASS sidebar session X keeps programs by default and confirmed close affects only its named target",flush=True)
+        select_session(sid,"after-last-tab-close")
+        desktop.type("printf 'AFTER_LIFECYCLE\\n'")
+        desktop.key("Return")
+        wait(lambda:"\nAFTER_LIFECYCLE\n" in content(),"returning to surviving tab lost input")
+        capture_pointer("sidebar-last-tab-close-complete")
+        print("PASS host + creates one working shell; final tab closes only its session, with default Keep running",flush=True)
     except BaseException:
         if desktop and "window" in locals():
             try:

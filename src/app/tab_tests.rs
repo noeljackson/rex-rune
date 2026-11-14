@@ -800,30 +800,18 @@ fn a_host_with_no_session_on_screen_draws_no_tab_track() {
 }
 
 #[test]
-fn the_sidebar_footer_counts_one_session_in_the_singular() {
-    let count = |rt: &Runtime<Workspace>| {
-        rt.elements()
-            .into_iter()
-            .find(|e| !e.exiting && e.key.as_deref() == Some("sidebar-session-count"))
-            .and_then(|e| e.text)
-            .expect("the footer's count")
-    };
+fn sidebar_has_compact_actions_without_a_sessions_heading_or_counter() {
     let (mut ws, _rx) = three_tabs("a");
-    ws.sidebar.toggle();
-    let mut rt = runtime(ws);
-    for _ in 0..60 {
-        rt.frame(1. / 60.);
+    ws.sidebar.set_open(true);
+    let rt = runtime(ws);
+    for key in ["session-search", "new-session", "add-host"] {
+        assert!(has(&rt, key));
     }
-    assert_eq!(count(&rt), "1 session");
-    rt.update(|s, _| s.hosts[0].model.sessions.push(session("t")));
-    for _ in 0..4 {
-        rt.frame(1. / 60.);
-    }
-    assert_eq!(count(&rt), "2 sessions");
-    rt.update(|s, _| s.hosts[0].model.sessions.clear());
-    for _ in 0..4 {
-        rt.frame(1. / 60.);
-    }
-    assert_eq!(count(&rt), "0 sessions");
+    assert!(!has(&rt, "sidebar-session-count"));
+    assert!(
+        !rt.elements()
+            .iter()
+            .any(|e| e.text.as_deref() == Some("Sessions"))
+    );
     std::fs::remove_file(&rt.state.settings_path).ok();
 }

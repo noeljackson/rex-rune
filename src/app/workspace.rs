@@ -982,9 +982,9 @@ impl Workspace {
     }
 
     /// Ask each host for the views of the sessions whose tabs the sidebar lists: those of
-    /// expanded hosts, while the sidebar is open with Sidebar tab position.
+    /// expanded hosts, whenever the sidebar is open.
     pub fn sync_prefetch(&mut self) {
-        let listing = self.sidebar_tabs();
+        let listing = self.sidebar.is_open();
         for index in 0..self.hosts.len() {
             let wanted: HashSet<String> = if listing && !self.settings.hosts[index].collapsed {
                 let sessions = &self.hosts[index].model.sessions;
@@ -1806,7 +1806,7 @@ impl Workspace {
             PaneAction::Close => {
                 let title = format!("Close {} in {}?", target.name, target.tab);
                 let description = format!(
-                    "Ends the program in this pane on {}. Closing the app itself keeps programs running.",
+                    "Ends the program in this pane on {}. Its session also closes if this is its last pane and tab. Closing the app itself keeps programs running.",
                     self.settings.hosts[target.host].label
                 );
                 self.confirm(
@@ -2240,9 +2240,7 @@ impl Workspace {
                     Some(target) if payload.get("block_ids").is_some() => {
                         self.confirmed_pane_close(&target, &payload);
                     }
-                    Some(target) => {
-                        self.send(target.host, HostCommand::Request { method, payload })
-                    }
+                    Some(target) => self.confirmed_single_pane_close(&target, payload),
                     None => self.request(&method, payload),
                 }
             }

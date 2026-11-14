@@ -102,6 +102,43 @@ impl Workspace {
         self.panel.as_mut().unwrap().target = Some(target);
     }
 
+    /// Closing the sole remaining program also closes its tab's session. Re-check the
+    /// snapshot at approval, so a pane or tab added meanwhile remains outside this close.
+    pub(super) fn confirmed_single_pane_close(&mut self, target: &PaneTarget, payload: Value) {
+        if !self.target_exists(target) {
+            return;
+        }
+        let last = self.hosts[target.host]
+            .model
+            .views
+            .get(&target.session)
+            .is_some_and(|view| {
+                view.windows.len() == 1
+                    && view.windows[0]
+                        .layers
+                        .iter()
+                        .flat_map(|l| &l.blocks)
+                        .count()
+                        == 1
+            });
+        self.send(
+            target.host,
+            HostCommand::Request {
+                method: if last {
+                    "session.destroy"
+                } else {
+                    "block.close"
+                }
+                .into(),
+                payload: if last {
+                    json!({"session_id":target.session})
+                } else {
+                    payload
+                },
+            },
+        );
+    }
+
     /// A confirmed Close other panes: one `block.close` a pane, once. A pane that closed
     /// since the question was asked is skipped, and nothing closes when the pane that was
     /// to stay is gone.

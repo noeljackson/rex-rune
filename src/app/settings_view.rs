@@ -139,10 +139,10 @@ fn tabs(s: &Workspace) -> El {
             "Sidebar and tabs",
             [card([
                 setting(
-                    "Session sidebar",
-                    "Hosts and their sessions beside the terminals.",
+                    "Sidebar",
+                    "Hosts, session names and their terminal tabs.",
                     Switch::new(s.sidebar.is_open())
-                        .label("Show session sidebar")
+                        .label("Show sidebar")
                         .hide_label()
                         .on_toggle_tx(|s: &mut Workspace, tx: &mut Tx| {
                             s.perform(Intent::Sidebar, tx)
@@ -152,7 +152,7 @@ fn tabs(s: &Workspace) -> El {
                 ),
                 setting(
                     "Tab position",
-                    "Sidebar tabs show while the sidebar is open.",
+                    "Top also shows a tab strip.",
                     segmented(
                         "tab-position",
                         &[

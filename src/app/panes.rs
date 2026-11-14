@@ -650,13 +650,13 @@ fn empty(s: &Workspace) -> El {
             "Retry connection",
             Intent::Retry,
         )
-    } else if model.selected.is_some() {
-        (
-            "This session has no tabs",
-            "Create a tab to start a terminal.".into(),
-            "New tab",
-            Intent::NewWindow,
-        )
+    } else if model.selected.is_some() && model.view().is_none() {
+        return col()
+            .key("session-loading")
+            .w_full()
+            .h_full()
+            .center()
+            .child(text("Opening terminal…").font(ui(13.)).color(rgb(muted())));
     } else if model.sessions.is_empty() {
         (
             "Your workspace starts here",

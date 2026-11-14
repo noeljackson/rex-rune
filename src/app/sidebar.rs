@@ -2,8 +2,7 @@
 //! (keyboard session navigation is the Ctrl K switcher, so arrows never switch sessions).
 use super::{
     activity::{program_icon, progress_bar, tab_activity, tab_name, tab_progress, tab_word},
-    keycaps::keycaps,
-    panel::{Intent, SessionAction, SessionTarget},
+    panel::Intent,
     panes::divider_handle,
     tabs::{TabAction, muted_mark, target_ring},
     theme::*,
@@ -31,8 +30,8 @@ fn close_button(
     let button = el()
         .key(key)
         .role("button")
-        .label(help.clone())
-        .help(help)
+        .label(format!("Close tab · {help}"))
+        .help("Close tab")
         .size(22., 22.)
         .radius(11.)
         .center()
@@ -156,55 +155,22 @@ fn host_header(s: &Workspace, index: usize) -> El {
         .child(plus)
 }
 
+/// A session names a collection; its terminal tabs, not the group, carry close buttons.
 fn session_row(s: &Workspace, index: usize, id: &str, label: &str) -> El {
-    let host = &s.hosts[index];
-    let selected = index == s.active && host.model.selected.as_deref() == Some(id);
-    // A count earns its place only when it says something: a session has one tab unless
-    // told otherwise.
-    let count = host
-        .model
-        .views
-        .get(id)
-        .map(|v| v.windows.len())
-        .filter(|count| *count > 1);
     let target = id.to_owned();
     let menu_id = id.to_owned();
-    let close_target = SessionTarget {
-        host: index,
-        session: id.to_owned(),
-        label: label.to_owned(),
-    };
-    let radius = if s.settings.vertical_tabs {
-        12.
-    } else {
-        ROW_RADIUS
-    };
-    // The session a session menu, its rename form or its close confirm acts on.
     let targeted = s
         .panel
         .as_ref()
         .and_then(|p| p.session.as_ref())
         .is_some_and(|t| t.host == index && t.session == id);
-    let mut e = row()
+    let mut header = row()
         .key(format!("session:{index}:{id}"))
         .role("button")
-        .label(if selected {
-            format!("{label} (current)")
-        } else {
-            label.to_owned()
-        })
-        .h(if s.settings.vertical_tabs {
-            24.
-        } else {
-            SESSION_ROW
-        })
-        .pl(10.)
-        .pr(4.)
-        .gap(10.)
+        .label(format!("{label} · session"))
+        .h(24.)
+        .px(10.)
         .center_y()
-        .radius(radius)
-        .continuous_corners()
-        .hover_group_focus()
         .cursor(Cursor::Pointer)
         .preserve_focus_on_press(true)
         .help_when_truncated(format!("{} · {label}", s.settings.hosts[index].label))
@@ -214,92 +180,27 @@ fn session_row(s: &Workspace, index: usize, id: &str, label: &str) -> El {
         })
         .on_secondary_press(move |s: &mut Workspace, p, _| {
             s.session_menu(index, menu_id.clone(), (p.x, p.y))
-        });
-    if selected && !s.settings.vertical_tabs {
-        e = e.child(
-            el().key("session-selection")
-                .pin(Some(0.), Some(0.), Some(0.), Some(0.))
-                .radius(radius)
-                .continuous_corners()
-                .fill(white(0.1))
-                .box_shadow(inset(1., white(0.07)))
-                .box_shadow(shadow(0., 1., 3., black(0.3)))
-                .matched("sb-current")
-                .transition(no_presence())
-                .motion(SNAPPY),
-        );
-    } else {
-        e = e.hover(white(0.05));
-    }
-    e = e
-        // The matched selection is inserted before the foreground. Keep each foreground
-        // identity independent of that sibling, so selecting either row cannot remount it.
-        .child(
-            (if s.settings.vertical_tabs {
-                el()
-            } else {
-                glyph(
-                    &TERMINAL,
-                    14.,
-                    rgb(if selected { accent() } else { muted() }),
-                )
-            })
-            .key("session-icon")
-            .motion(rune::Spring::NONE),
-        )
+        })
         .child(
             text(label.to_owned())
                 .key("session-label")
                 .motion(rune::Spring::NONE)
-                .font(if s.settings.vertical_tabs {
-                    medium(11.5)
-                } else if selected {
-                    medium(13.)
-                } else {
-                    ui(13.)
-                })
-                .color(rgb(if selected && !s.settings.vertical_tabs {
-                    ink()
-                } else {
-                    muted()
-                }))
+                .font(medium(11.5))
+                .color(rgb(muted()))
                 .truncate()
                 .grow(1.)
                 .shrink(),
         );
-    if let Some(count) = count {
-        e = e.child(
-            text(count.to_string())
-                .key(format!("session-count:{index}:{id}"))
-                .label(format!("{count} tabs"))
-                .font(medium(10.5))
-                .color(rgb(muted())),
-        );
-    }
-    e = e.child(close_button(
-        format!("session-close:{index}:{id}"),
-        format!("Close session… · {label}"),
-        host.model.connected,
-        move |s, tx| {
-            s.perform(
-                Intent::Session(close_target.clone(), SessionAction::Close),
-                tx,
-            )
-        },
-    ));
     if targeted {
-        // An overlay, so the outline never shifts the row; above the selected fill.
-        e = e.child(
+        header = header.child(
             el().key(format!("session-target:{index}:{id}"))
                 .pin(Some(0.), Some(0.), Some(0.), Some(0.))
-                .radius(radius)
-                .continuous_corners()
+                .radius(12.)
                 .border(1.5, rgb(accent())),
         );
     }
-    e
+    header
 }
-
 fn window_row(s: &Workspace, index: usize, session: &str, tab: &rexrs::api::session::Window) -> El {
     let Some(id) = tab.window_id.as_deref() else {
         return el();
@@ -414,7 +315,7 @@ fn window_row(s: &Workspace, index: usize, session: &str, tab: &rexrs::api::sess
     let close_enabled = model.connected && close_target.is_some();
     row = row.child(close_button(
         format!("sidebar-tab-close:{index}:{session}:{id}"),
-        format!("Close tab… · {}", tab_name(model, tab)),
+        tab_name(model, tab),
         close_enabled,
         move |s, tx| {
             if let Some(target) = &close_target {
@@ -476,29 +377,45 @@ pub fn sidebar(s: &Workspace, cx: &mut Cx<Workspace>) -> El {
         let config = &s.settings.hosts[index];
         let mut group = col()
             .key(format!("group:{index}"))
+            .role("group")
+            .label(config.label.clone())
             .gap(2.)
             .child(host_header(s, index));
         height += HOST_ROW;
         if !config.collapsed {
             for session in &host.model.sessions {
-                group = group.child(session_row(s, index, &session.session_id, &session.label));
-                height += if s.settings.vertical_tabs {
-                    26.
-                } else {
-                    SESSION_ROW + 2.
-                };
-                if s.settings.vertical_tabs
-                    && let Some(view) = host.model.views.get(&session.session_id)
+                if host
+                    .model
+                    .views
+                    .get(&session.session_id)
+                    .is_some_and(|view| view.windows.is_empty())
                 {
+                    continue;
+                }
+                let mut collection = col()
+                    .key(format!("session-group:{index}:{}", session.session_id))
+                    .role("group")
+                    .label(session.label.clone())
+                    .gap(2.)
+                    .child(session_row(s, index, &session.session_id, &session.label));
+                height += 26.;
+                if let Some(view) = host.model.views.get(&session.session_id) {
                     for tab in &view.windows {
                         if tab.window_id.is_some() {
-                            group = group.child(window_row(s, index, &session.session_id, tab));
+                            collection =
+                                collection.child(window_row(s, index, &session.session_id, tab));
                             height += SESSION_ROW + 2.;
                         }
                     }
                 }
+                group = group.child(collection);
             }
-            if host.model.sessions.is_empty() {
+            if host.model.sessions.iter().all(|session| {
+                host.model
+                    .views
+                    .get(&session.session_id)
+                    .is_some_and(|view| view.windows.is_empty())
+            }) {
                 if host.model.connected {
                     group = group.child(new_session(s, index));
                     height += SESSION_ROW + 2.;
@@ -551,46 +468,10 @@ pub fn sidebar(s: &Workspace, cx: &mut Cx<Workspace>) -> El {
             }
         }));
     }
-    let total: usize = s.hosts.iter().map(|h| h.model.sessions.len()).sum();
     let mut area = col().grow(1.).min_h(0.).child(scroller);
     if overflow {
         area = area.child(fx.thumb_el());
     }
-    let find = chip(
-        row()
-            .key("session-search")
-            .role("button")
-            .label("Find a session")
-            .h(32.)
-            .mx(8.)
-            .px(10.)
-            .gap(8.)
-            .center_y()
-            .hover(white(0.08))
-            .cursor(Cursor::Pointer)
-            .preserve_focus_on_press(true)
-            .on_press_tx(|s: &mut Workspace, tx: &mut Tx| {
-                s.picker(true);
-                tx.blur();
-            })
-            .child(glyph(&SEARCH, 14., rgb(muted())))
-            .child(
-                text("Find a session")
-                    .font(ui(12.5))
-                    .color(rgb(muted()))
-                    .truncate()
-                    .grow(1.)
-                    .shrink(),
-            )
-            // The switcher's shortcut as it is bound now; nothing when it is unbound.
-            .child(
-                keycaps(
-                    &s.shortcut_chords("session.switch", &serde_json::Value::Null),
-                    false,
-                )
-                .key("session-search-keys"),
-            ),
-    );
     let mut panel = col()
         .w_full()
         .grow(1.)
@@ -601,60 +482,46 @@ pub fn sidebar(s: &Workspace, cx: &mut Cx<Workspace>) -> El {
         .border_gradient(1., white(0.07), white(0.02))
         .pt(8.)
         .gap(8.)
-        .child(
-            row()
-                .h(30.)
-                .pl(14.)
-                .pr(6.)
-                .center_y()
-                .child(
-                    text("Sessions")
-                        .font(strong(13.))
-                        .color(rgb(ink()))
-                        .grow(1.),
-                )
-                .child(chrome_button(
-                    "new-session",
-                    &PLUS,
-                    "New session… · choose a host",
-                    28.,
-                    |s, tx| s.perform(Intent::ChooseHost(String::new()), tx),
-                )),
-        )
-        .child(find)
         .child(area);
     if overflow {
         panel = panel.child(fx.hint_el());
     }
+    let keys = s.shortcut_detail("session.switch", &serde_json::Value::Null);
+    let search_help = if keys.is_empty() {
+        "Find a session".to_owned()
+    } else {
+        format!("Find a session · {keys}")
+    };
     panel = panel.child(
         row()
             .h(40.)
             .px(8.)
             .center_y()
             .justify_between()
+            .child(chrome_button(
+                "session-search",
+                &SEARCH,
+                &search_help,
+                28.,
+                |s, tx| s.perform(Intent::Switcher, tx),
+            ))
             .child(
                 row()
-                    .key("add-host")
-                    .role("button")
-                    .label("Add host")
-                    .h(28.)
-                    .px(8.)
-                    .gap(6.)
-                    .center_y()
-                    .radius(8.)
-                    .hover(white(0.06))
-                    .cursor(Cursor::Pointer)
-                    .preserve_focus_on_press(true)
-                    .on_press_tx(|s: &mut Workspace, tx: &mut Tx| s.perform(Intent::AddHost, tx))
-                    .child(glyph(&PLUS, 14., rgb(muted())))
-                    .child(text("Add host").font(ui(12.)).color(rgb(muted()))),
-            )
-            .child(
-                text(session_count(total))
-                    .key("sidebar-session-count")
-                    .font(ui(11.))
-                    .color(rgb(muted()))
-                    .pr(6.),
+                    .gap(2.)
+                    .child(chrome_button(
+                        "new-session",
+                        &PLUS,
+                        "New session… · choose a host",
+                        28.,
+                        |s, tx| s.perform(Intent::ChooseHost(String::new()), tx),
+                    ))
+                    .child(chrome_button(
+                        "add-host",
+                        &SETTINGS_GLOBE,
+                        "Add host",
+                        28.,
+                        |s, tx| s.perform(Intent::AddHost, tx),
+                    )),
             ),
     );
     col()
@@ -692,13 +559,4 @@ pub fn sidebar_edge(s: &Workspace) -> El {
         s.sidebar.reset_width();
         s.save();
     })
-}
-
-/// How many sessions the saved hosts have between them, for the footer.
-fn session_count(total: usize) -> String {
-    if total == 1 {
-        "1 session".to_owned()
-    } else {
-        format!("{total} sessions")
-    }
 }

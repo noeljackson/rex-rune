@@ -481,15 +481,28 @@ impl Workspace {
             }
             TabAction::Close => {
                 let title = format!("Close {}?", target.name);
-                let description = format!(
-                    "Ends every program in this tab on {host}. Closing the app itself leaves programs running."
-                );
+                let last = order.len() == 1;
+                let session = self.session_label(target.host, &target.session);
+                let description = if last {
+                    format!(
+                        "This is the last tab in {session} on {host}. Closing it also closes that session and ends its programs. Closing the app itself leaves programs running."
+                    )
+                } else {
+                    format!(
+                        "Ends every program in this tab on {host}. Its session closes if no tabs remain. Closing the app itself leaves programs running."
+                    )
+                };
                 self.confirm(
                     &title,
-                    "session.close_window",
-                    json!({"window_id": target.window}),
+                    if last {
+                        "session.destroy"
+                    } else {
+                        "session.close_window"
+                    },
+                    json!({"window_id":target.window}),
                     &description,
                 );
+                self.panel.as_mut().unwrap().target = None;
                 self.panel.as_mut().unwrap().tab = Some(target);
             }
         }
@@ -499,6 +512,27 @@ impl Workspace {
     /// one that closed since the question was asked is skipped, and nothing closes when the
     /// tab that was to stay is gone.
     pub(super) fn confirmed_tab_close(&mut self, target: &TabTarget, method: &str, payload: Value) {
+        if payload.get("window_ids").is_none()
+            && matches!(method, "session.destroy" | "session.close_window")
+        {
+            let Some((_, order)) = self.tab_order(target) else {
+                return;
+            };
+            if !order.contains(&target.window) {
+                return;
+            }
+            // Another tab may have arrived while the confirmation was open.
+            if order.len() == 1 {
+                self.tab_request(target, "session.destroy", json!({}));
+            } else {
+                self.tab_request(
+                    target,
+                    "session.close_window",
+                    json!({"window_id":target.window}),
+                );
+            }
+            return;
+        }
         let Some(named) = payload.get("window_ids").and_then(Value::as_array) else {
             self.tab_request(target, method, payload);
             return;
