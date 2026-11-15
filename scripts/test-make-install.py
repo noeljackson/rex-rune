@@ -51,6 +51,9 @@ class InstallTests(unittest.TestCase):
         self.cargo = self.tools / "cargo fixture"
         executable(self.cargo, '''#!/usr/bin/env python3
 import json, os, pathlib, sys
+# Like Cargo itself, refuse an empty target override rather than ignoring it.
+if 'CARGO_BUILD_TARGET' in os.environ and not os.environ['CARGO_BUILD_TARGET']:
+    sys.exit('target was empty')
 with open(os.environ['TEST_CARGO_LOG'], 'a') as log:
     log.write(json.dumps(sys.argv[1:]) + '\\n')
 if os.environ.get('TEST_BUILD_FAIL'):

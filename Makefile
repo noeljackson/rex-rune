@@ -10,7 +10,13 @@ RUN_ARGS ?=
 
 # Empty PREFIX preserves the installer's XDG paths (normally ~/.local).
 # Explicit PREFIX selects PREFIX/bin and PREFIX/share; BINDIR/DATADIR override them.
-export CARGO RUSTC ZIG CARGO_TARGET_DIR CARGO_BUILD_TARGET REX_BIN PREFIX BINDIR DATADIR DESTDIR
+export CARGO RUSTC ZIG CARGO_TARGET_DIR REX_BIN PREFIX BINDIR DATADIR DESTDIR
+# Cargo rejects an empty target, so do not export this optional override unset.
+ifneq ($(strip $(CARGO_BUILD_TARGET)),)
+export CARGO_BUILD_TARGET
+else
+unexport CARGO_BUILD_TARGET
+endif
 
 .PHONY: all build release toolchain install install-only uninstall run clean \
 	test fmt clippy check test-rexrs test-install help
