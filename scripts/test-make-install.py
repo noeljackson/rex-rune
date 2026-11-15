@@ -16,7 +16,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 MAKE = shutil.which("make")
 RESET = {"PREFIX", "BINDIR", "DATADIR", "DESTDIR", "CARGO", "RUSTC", "ZIG",
-         "CARGO_TARGET_DIR", "CARGO_BUILD_TARGET", "REX_BIN", "MAKEFLAGS", "MFLAGS",
+         "CARGO_TARGET_DIR", "CARGO_BUILD_TARGET", "ZIG_GLOBAL_CACHE_DIR", "REX_BIN", "MAKEFLAGS", "MFLAGS",
          "MAKELEVEL", "MAKEOVERRIDES"}
 
 
@@ -54,6 +54,8 @@ import json, os, pathlib, sys
 # Like Cargo itself, refuse an empty target override rather than ignoring it.
 if 'CARGO_BUILD_TARGET' in os.environ and not os.environ['CARGO_BUILD_TARGET']:
     sys.exit('target was empty')
+if not pathlib.Path(os.environ['ZIG_GLOBAL_CACHE_DIR']).is_absolute():
+    sys.exit('Zig cache must be absolute even when Cargo changes directory')
 with open(os.environ['TEST_CARGO_LOG'], 'a') as log:
     log.write(json.dumps(sys.argv[1:]) + '\\n')
 if os.environ.get('TEST_BUILD_FAIL'):

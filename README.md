@@ -161,6 +161,8 @@ Make uses the Rust and Zig executables on `PATH`. It checks Rust 1.96+ and Zig 0
 
 Override executable paths or build output when needed, for example `make ZIG=/opt/zig/zig CARGO_TARGET_DIR=/path/to/build`. `CARGO`, `RUSTC` and `CARGO_BUILD_TARGET` are also supported; `REX_BIN` overrides the artifact used by `run` and installation. `make help` lists the targets and overrides.
 
+Make keeps Zig's package/compiler cache under `CARGO_TARGET_DIR/zig-cache` by default, avoiding shared Zig 0.17 package archives with incompatible nesting from standalone `zig fetch`. Dependency hash checks remain enabled; no source or dependency is changed. `ZIG_GLOBAL_CACHE_DIR` overrides this location. Direct Cargo users encountering this cache problem can set `ZIG_GLOBAL_CACHE_DIR` to an absolute build-local directory too.
+
 Optionally, [mise](https://mise.jdx.dev/) can provide the toolchain: [`mise.toml`](mise.toml) pins Rust 1.96.1 (with Clippy and rustfmt) and Zig 0.17.1, and its tasks delegate to Make (`mise run build`, `install`, `uninstall` or `check`). Run `mise trust` and `mise install` once first. Mise does not provide the native Linux libraries listed in [Requirements](#requirements).
 
 The repository is also a Nix flake: `nix build .#rex-linux` builds a package with the desktop entry and icons, and `nix develop` gives a shell with the toolchain and libraries. See [Nix packaging](docs/nix.md).
