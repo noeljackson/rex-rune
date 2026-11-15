@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Add standard Make build/install/uninstall and check targets, with prefix/staging support, shared mise recipes and isolated installer checks.
+
 - Independent desktop windows with per-window CLI labels and tab choices, shared preference updates and acknowledged remote close. Closing a view leaves server programs running.
 
 ### Added

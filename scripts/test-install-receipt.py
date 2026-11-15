@@ -8,12 +8,16 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
-with tempfile.TemporaryDirectory(prefix='rex-receipt-') as temp:
+cache = Path(os.environ.get('REX_TEST_TMPDIR', os.environ.get('XDG_CACHE_HOME', Path.home() / '.cache')))
+cache.mkdir(parents=True, exist_ok=True)
+with tempfile.TemporaryDirectory(prefix='rex-receipt-', dir=cache) as temp:
     home = Path(temp) / 'home with "quotes" and \\slashes'
     home.mkdir()
     binary = Path(temp) / 'rex-linux'
     binary.write_text('#!/bin/sh\necho rex-linux 99.0.0\n'); binary.chmod(0o755)
-    env = {**os.environ, 'HOME': str(home), 'XDG_BIN_HOME': str(home / 'bin'),
+    env = {**{k: v for k, v in os.environ.items() if k not in
+              ('PREFIX', 'BINDIR', 'DATADIR', 'DESTDIR')},
+           'HOME': str(home), 'XDG_BIN_HOME': str(home / 'bin'),
            'XDG_DATA_HOME': str(home / 'data')}
     command = ['bash', str(ROOT / 'scripts/install-desktop.sh')]
     receipt = home / 'data/rex-linux/install.json'

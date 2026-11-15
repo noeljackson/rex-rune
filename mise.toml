@@ -4,51 +4,32 @@ zig = "0.17.1"
 
 [tasks.build]
 description = "Build the release application"
-run = "cargo build --locked --release --bin rex-linux && touch target/release/.rex-linux-build.stamp"
-sources = [
-    "Cargo.toml",
-    "Cargo.lock",
-    "src/**/*",
-    "resources/icons/256x256/apps/dev.shuv.rex-linux.png",
-    "vendor/rune/crates/{rune,rune-motion,rune-staging,rune-taffy,procwatch}/Cargo.toml",
-    "vendor/rune/crates/{rune,rune-motion,rune-staging,rune-taffy,procwatch}/src/**/*",
-    "vendor/rune/crates/rune/assets/**/*",
-    "vendor/rexrs/Cargo.toml",
-    "vendor/rexrs/src/**/*",
-    "vendor/ghostty-vt/**/*",
-]
-outputs = ["target/release/rex-linux", "target/release/.rex-linux-build.stamp"]
+run = "make build"
 
 [tasks.install]
 description = "Build Rex Linux and install it with a launcher for the current user"
-depends = ["build"]
-run = "bash scripts/install-desktop.sh --copy"
+run = "make install"
 
 [tasks.uninstall]
 description = "Remove the current user's Rex Linux installation"
-run = "bash scripts/install-desktop.sh --uninstall"
+run = "make uninstall"
 
 [tasks.test]
 description = "Run unit and headless UI tests"
-run = "cargo test --locked --all-features"
+run = "make test"
 
 [tasks.fmt]
 description = "Check Rust formatting"
-run = "cargo fmt --all -- --check"
+run = "make fmt"
 
 [tasks.clippy]
 description = "Lint every target and feature"
-run = "cargo clippy --locked --all-targets --all-features -- -D warnings"
+run = "make clippy"
 
 [tasks."test-rexrs"]
 description = "Test the vendored Rex SDK"
-run = "cargo test --manifest-path vendor/rexrs/Cargo.toml --all-features"
+run = "make test-rexrs"
 
 [tasks.check]
 description = "Run all repository checks"
-run = """
-cargo fmt --all -- --check
-cargo clippy --locked --all-targets --all-features -- -D warnings
-cargo test --locked --all-features
-cargo test --manifest-path vendor/rexrs/Cargo.toml --all-features
-"""
+run = "make check"
