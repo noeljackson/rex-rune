@@ -5,20 +5,23 @@ Rex Linux is a native Linux client for Rex terminal servers, written in Rust on 
 ## Build and test
 
 ```sh
-cargo build --locked --release --bin rex-linux          # the app
-cargo test --locked --all-features                      # unit and headless UI tests
-cargo fmt --all -- --check
-cargo clippy --locked --all-targets --all-features -- -D warnings
+make                      # locked release build of the app
+make install              # build and copy the user binary, launcher and icons
+make test                 # unit and headless UI tests, serial by default
+make fmt
+make clippy
+make test-install         # isolated Make/installer checks, no Rex server
+make check                # fmt, clippy, tests, SDK and installation checks
 
 # Protocol-only binaries (no UI libraries needed):
 cargo run --locked --no-default-features --bin rex-probe
 cargo run --locked --no-default-features --bin rex-workspace-probe
 
 # Vendored SDK tests:
-cargo test --manifest-path vendor/rexrs/Cargo.toml --all-features
+make test-rexrs
 ```
 
-Requirements are listed in the README (Rust 1.96+, Zig 0.17.x for `ghostty-vt`, Linux graphics and input libraries). `Cargo.lock` is committed; keep `--locked` working.
+Requirements are listed in the README (GNU Make, Rust 1.96+, Zig 0.17.x for `ghostty-vt`, Linux graphics and input libraries). `Cargo.lock` is committed; keep `--locked` working. Make delegates rebuilding to Cargo and accepts `CARGO`, `RUSTC`, `ZIG` and `CARGO_TARGET_DIR` overrides. `TEST_ARGS` overrides the default serial test arguments. Direct Cargo remains supported. Install targets share `scripts/install-desktop.sh`; `PREFIX`/`BINDIR`/`DATADIR` select final paths and `DESTDIR` stages them. Use `install-only` for a prebuilt artifact rather than building as root.
 
 Some probes connect to the configured Rex server and create sessions there. Of the Python scripts in `scripts/`, `x11-smoke.py`, `rune-acceptance-x11.py` and `wayland-seat-smoke.py` require `REX_SERVER` to name a disposable server and exit without it; the rest start their own. Every script that launches the client honours `REX_BIN`. Run them only against a disposable server or socket you control, and check each script's requirements in its docstring. `rex-download-probe <unix endpoint> <work dir>` creates a session on the server it is given and downloads real files from it; it refuses the default per-user socket path. Scripts that select text by pointer pin `pane_padding` in their private `workspace.json` and compute positions from it (`grid_origin` in `rune-acceptance-x11.py`), so a changed default does not break them. Anything that exercises the UI against real input (`x11-smoke.py`, `rune-acceptance-x11.py`, `wayland-seat-smoke.py`) needs a built binary and the tools it names.
 

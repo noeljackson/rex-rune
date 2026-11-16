@@ -144,6 +144,7 @@ Older releases do not gain signatures or attestations retroactively.
 
 ## Build requirements
 
+- GNU Make, Bash and coreutils for the Make build/install workflow. Desktop installation also needs `desktop-file-utils`; installation checks need Python 3.
 - Rust 1.96 or newer (edition 2024; see `rust-version` in `Cargo.toml`).
 - [Zig](https://ziglang.org/) 0.17.x. The `ghostty-vt` crate builds Ghostty's VT library from a checksum-pinned source archive with Zig.
 - Linux with Wayland or X11, plus the usual graphics/input libraries: Vulkan, xkbcommon, fontconfig and the Wayland/X11 client libraries.
@@ -152,10 +153,17 @@ Older releases do not gain signatures or attestations retroactively.
 ## Build
 
 ```sh
-cargo build --locked --release --bin rex-linux
+make                 # locked release build: target/release/rex-linux
+make install         # build, then install for the current user
 ```
 
-Optionally, [mise](https://mise.jdx.dev/) can provide the toolchain: [`mise.toml`](mise.toml) pins Rust 1.96.1 (with Clippy and rustfmt) and Zig 0.17.1, and `mise run build` runs the command above. Run `mise trust` and `mise install` once first. Mise does not provide the native Linux libraries listed in [Requirements](#requirements).
+Make uses the Rust and Zig executables on `PATH`. It checks Rust 1.96+ and Zig 0.17.x before building, without downloading tools or starting a Rex server. Cargo handles incremental rebuilds. `make build` and `make release` are aliases; direct Cargo remains available as `cargo build --locked --release --bin rex-linux`.
+
+Override executable paths or build output when needed, for example `make ZIG=/opt/zig/zig CARGO_TARGET_DIR=/path/to/build`. `CARGO`, `RUSTC` and `CARGO_BUILD_TARGET` are also supported; `REX_BIN` overrides the artifact used by `run` and installation. `make help` lists the targets and overrides.
+
+Make keeps Zig's package/compiler cache under `CARGO_TARGET_DIR/zig-cache` by default, avoiding shared Zig 0.17 package archives with incompatible nesting from standalone `zig fetch`. Dependency hash checks remain enabled; no source or dependency is changed. `ZIG_GLOBAL_CACHE_DIR` overrides this location. Direct Cargo users encountering this cache problem can set `ZIG_GLOBAL_CACHE_DIR` to an absolute build-local directory too.
+
+Optionally, [mise](https://mise.jdx.dev/) can provide the toolchain: [`mise.toml`](mise.toml) pins Rust 1.96.1 (with Clippy and rustfmt) and Zig 0.17.1, and its tasks delegate to Make (`mise run build`, `install`, `uninstall` or `check`). Run `mise trust` and `mise install` once first. Mise does not provide the native Linux libraries listed in [Requirements](#requirements).
 
 The repository is also a Nix flake: `nix build .#rex-linux` builds a package with the desktop entry and icons, and `nix develop` gives a shell with the toolchain and libraries. See [Nix packaging](docs/nix.md).
 
@@ -200,13 +208,38 @@ Without `--session`, the workspace restores the saved host and session; on a new
 ### Desktop install
 
 ```sh
+make install         # defaults to ~/.local; no root required
+make uninstall       # removes installed files, preserves preferences
+```
+
+The binary is copied into `~/.local/bin`, with its desktop launcher and icons under `~/.local/share`, so the installation works independently of the checkout. Without an explicit `PREFIX`, `XDG_BIN_HOME` and `XDG_DATA_HOME` are respected. `PREFIX` selects `PREFIX/bin` and `PREFIX/share` instead; `BINDIR` and `DATADIR` override either directory. All installation directories must be absolute paths.
+
+```sh
+make install PREFIX="$HOME/apps/rex"       # another installation prefix
+make uninstall PREFIX="$HOME/apps/rex"   # use the same paths when uninstalling
+make install PREFIX=/usr DESTDIR="$PWD/dist/stage"  # package staging
+```
+
+`DESTDIR` prefixes installed file locations only: the staged launcher contains the final runtime path and no host desktop/icon caches are refreshed. Staged uninstall also requires the same `PREFIX` and `DESTDIR`.
+
+To install system-wide, build as your normal user, then copy with elevated permissions without running Cargo as root:
+
+```sh
+make
+sudo make install-only PREFIX=/usr/local REX_BIN="$PWD/target/release/rex-linux"
+# sudo make uninstall PREFIX=/usr/local
+```
+
+For source updates, pull the desired revision and run `make install` again. `make clean` removes build outputs while leaving installed files and preferences alone. The existing installer remains available directly, including its launcher-only mode:
+
+```sh
 bash scripts/install-desktop.sh [--copy] [path/to/rex-linux]
 bash scripts/install-desktop.sh --uninstall
 ```
 
 This installs `dev.shuv.rex-linux.desktop` under `$XDG_DATA_HOME/applications` (normally `~/.local/share/applications`) pointing at the release binary of this checkout (or the binary you pass), and the app icon at 32, 128 and 256 px into the user's `hicolor` theme. Without `--copy`, re-run it if you move the checkout. With `--copy`, the binary is copied to `$XDG_BIN_HOME` (normally `~/.local/bin`) and the launcher points there, so it no longer depends on the checkout. `--uninstall` removes the launcher, the icons and the copied binary. It needs `desktop-file-install`, `desktop-file-validate` and `update-desktop-database`; no root access. See [icon provenance](resources/icons/README.md).
 
-With mise, `mise run install` builds the release binary and runs the script with `--copy`, and `mise run uninstall` runs it with `--uninstall`.
+Make and the optional mise tasks use this same installer. Source installations invalidate any previous official-release receipt, so updates continue to identify the installation honestly.
 
 ## Configuration
 
@@ -565,16 +598,19 @@ Both make every terminal on that server look like an SSH session, local clients 
 ## Development
 
 ```sh
-cargo test --locked --all-features
-cargo fmt --all -- --check
-cargo clippy --locked --all-targets --all-features -- -D warnings
+make test             # all features, serial by default (override TEST_ARGS)
+make fmt              # formatting check
+make clippy           # strict lint checks
+make test-rexrs       # vendored SDK tests
+make test-install     # isolated installer/Make checks; needs Python 3
+make check            # all of the above, sequentially
 
 # Protocol probes against a Rex server (endpoint optional; they create and remove their own sessions).
 cargo run --locked --no-default-features --bin rex-probe
 cargo run --locked --no-default-features --bin rex-workspace-probe
 ```
 
-With mise, `mise run test`, `fmt`, `clippy` and `test-rexrs` run the first three commands and the vendored SDK tests; `mise run check` runs them all.
+The optional mise tasks delegate to these Make targets. To filter tests or change concurrency, pass `TEST_ARGS`, for example `make test TEST_ARGS="sidebar_tests --test-threads=1"`. Direct Cargo commands still work. None of these Make targets connects to a Rex server; the separate integration scripts below have their own requirements.
 
 `python3 scripts/keymap-acceptance.py` checks layered bindings, native sequences,
 Lua forwarding, queued client actions, file/server reload, removals and the
